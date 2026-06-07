@@ -1,5 +1,5 @@
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = 'claude-3-5-sonnet-20241022'
+const MODEL = 'claude-3-haiku-20240307'
 const MAX_TOKENS = 1024
 
 async function callAnthropic(messages) {
