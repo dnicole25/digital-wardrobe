@@ -44,6 +44,7 @@ export default function App() {
   const [savedIndicator, setSavedIndicator] = useState(false)
   const [savedKey, setSavedKey] = useState(0)
   const [storageError, setStorageError] = useState(false)
+  const [imageWarning, setImageWarning] = useState('')
 
   const [wardrobeItems, setWardrobeItems] = useState([])
   const [wishlistItems, setWishlistItems] = useState([])
@@ -112,7 +113,9 @@ export default function App() {
     try {
       return await uploadFile(imageFile, user.id)
     } catch (err) {
-      console.warn('Image upload failed, saving item without image:', err)
+      console.warn('Image upload failed:', err)
+      setImageWarning(err.message || 'Image upload failed — check Supabase Storage setup.')
+      setTimeout(() => setImageWarning(''), 6000)
       if (err.message?.includes('quota') || err.message?.includes('size')) {
         setStorageError(true)
       }
@@ -372,7 +375,10 @@ export default function App() {
             {savedIndicator && (
               <span key={savedKey} className="saved-indicator">✓ Saved</span>
             )}
-            {storageError && (
+            {imageWarning && (
+              <span className="storage-error" title={imageWarning}>⚠ Image upload failed</span>
+            )}
+            {storageError && !imageWarning && (
               <span className="storage-error">⚠ Storage error</span>
             )}
           </div>
