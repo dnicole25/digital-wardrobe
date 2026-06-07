@@ -1,0 +1,165 @@
+import { useState } from 'react'
+
+const AnchorIcon = ({ filled }) => (
+  <svg width="12" height="14" viewBox="0 0 12 14" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+    <circle cx="6" cy="2.5" r="1.5" />
+    <path d="M6 4v9M3 7H1M9 7h2M1 13h10" strokeLinecap="round" />
+  </svg>
+)
+
+const EditIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <path d="M9.5 2.5L11.5 4.5M2 12l2.5-.5L12 4l-2-2L2.5 9.5 2 12z" />
+  </svg>
+)
+
+const TrashIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <path d="M2 4h10M5 4V2.5h4V4M4 4l.5 7.5h5L10 4" />
+  </svg>
+)
+
+const ExternalLinkIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <path d="M5 2H2v8h8V7M8 2h2v2M10 2L5.5 6.5" />
+  </svg>
+)
+
+const ImageIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1">
+    <rect x="3" y="5" width="26" height="22" rx="2" />
+    <circle cx="11" cy="13" r="3" />
+    <path d="M3 22l7-7 5 5 4-4 10 9" />
+  </svg>
+)
+
+export default function ItemCard({
+  item,
+  onEdit,
+  onDelete,
+  onAnchorToggle,
+  isAnchored,
+  showWishlistActions = false,
+  onMoveToWardrobe,
+  onFindSimilar,
+  onGenerateOutfit,
+}) {
+  const [imageError, setImageError] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  function handleDelete() {
+    if (confirmDelete) {
+      onDelete(item.id)
+    } else {
+      setConfirmDelete(true)
+      setTimeout(() => setConfirmDelete(false), 2500)
+    }
+  }
+
+  const occasions = item.occasions || []
+  const seasons = item.seasons || []
+
+  return (
+    <div className="item-card fade-in">
+      <div className="item-card-image">
+        {item.image_url && !imageError ? (
+          <img
+            src={item.image_url}
+            alt={item.name}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="item-card-placeholder">
+            <ImageIcon />
+          </div>
+        )}
+
+        {onAnchorToggle && (
+          <button
+            className={`item-card-anchor ${isAnchored ? 'anchored' : ''}`}
+            onClick={() => onAnchorToggle(item.id)}
+            title={isAnchored ? 'Unanchor' : 'Anchor (always include)'}
+          >
+            <AnchorIcon filled={isAnchored} />
+          </button>
+        )}
+
+        {item.source && (
+          <div className="item-card-source">{item.source}</div>
+        )}
+      </div>
+
+      <div className="item-card-body">
+        <div className="item-card-name">{item.name || 'Unnamed Item'}</div>
+
+        <div className="item-card-tags">
+          {item.category && <span className="tag">{item.category}</span>}
+          {item.color && <span className="tag blush">{item.color}</span>}
+          {item.size && <span className="tag">Sz {item.size}</span>}
+          {occasions.map(o => (
+            <span key={o} className="tag gold">{o}</span>
+          ))}
+          {seasons.map(s => (
+            <span key={s} className="tag">{s}</span>
+          ))}
+        </div>
+
+        <div className="item-card-actions">
+          {showWishlistActions && item.url && (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-icon"
+              title="Open product page"
+            >
+              <ExternalLinkIcon />
+            </a>
+          )}
+
+          <button className="btn-icon" onClick={() => onEdit(item)} title="Edit">
+            <EditIcon />
+          </button>
+
+          <button
+            className="btn-icon"
+            onClick={handleDelete}
+            title={confirmDelete ? 'Click again to confirm' : 'Delete'}
+            style={{ color: confirmDelete ? '#c0392b' : undefined }}
+          >
+            {confirmDelete ? '✓' : <TrashIcon />}
+          </button>
+        </div>
+      </div>
+
+      {showWishlistActions && (
+        <div className="item-card-wishlist-actions">
+          <button
+            className="btn-outline"
+            style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+            onClick={() => onMoveToWardrobe(item)}
+            title="Move to wardrobe"
+          >
+            + Wardrobe
+          </button>
+          <button
+            className="btn-outline"
+            style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+            onClick={() => onGenerateOutfit(item)}
+            title="Build outfit around this item"
+          >
+            ✦ Outfit
+          </button>
+          <button
+            className="btn-outline"
+            style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+            onClick={() => onFindSimilar(item)}
+            title="Find similar items"
+          >
+            ⌕ Similar
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
