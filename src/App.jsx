@@ -107,41 +107,39 @@ export default function App() {
     setTimeout(() => setSavedIndicator(false), 2000)
   }
 
-  async function uploadItemImage(itemData, imageFile) {
+  async function uploadItemImage(imageFile) {
     if (!imageFile || !user) return null
     try {
-      const url = await uploadFile(imageFile, user.id)
-      return url
+      return await uploadFile(imageFile, user.id)
     } catch (err) {
+      console.warn('Image upload failed, saving item without image:', err)
       if (err.message?.includes('quota') || err.message?.includes('size')) {
         setStorageError(true)
       }
-      throw err
+      return null
     }
   }
 
   // --- Wardrobe CRUD ---
   async function addWardrobeItem(itemData, imageFile) {
-    let imageUrl = null
-    if (imageFile) imageUrl = await uploadItemImage(itemData, imageFile)
+    const imageUrl = await uploadItemImage(imageFile)
     const { data, error } = await supabase
       .from('wardrobe_items')
       .insert([{ ...itemData, image_url: imageUrl, user_id: user.id }])
       .select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setWardrobeItems(prev => [data, ...prev])
     showSaved()
     return data
   }
 
   async function editWardrobeItem(id, updates, imageFile) {
-    let imageUrl = updates.image_url
-    if (imageFile) imageUrl = await uploadItemImage(updates, imageFile)
+    const imageUrl = imageFile ? await uploadItemImage(imageFile) : updates.image_url
     const { data, error } = await supabase
       .from('wardrobe_items')
       .update({ ...updates, image_url: imageUrl })
       .eq('id', id).select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setWardrobeItems(prev => prev.map(i => i.id === id ? data : i))
     showSaved()
     return data
@@ -157,26 +155,24 @@ export default function App() {
 
   // --- Wishlist CRUD ---
   async function addWishlistItem(itemData, imageFile) {
-    let imageUrl = null
-    if (imageFile) imageUrl = await uploadItemImage(itemData, imageFile)
+    const imageUrl = await uploadItemImage(imageFile)
     const { data, error } = await supabase
       .from('wishlist_items')
       .insert([{ ...itemData, image_url: imageUrl, user_id: user.id }])
       .select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setWishlistItems(prev => [data, ...prev])
     showSaved()
     return data
   }
 
   async function editWishlistItem(id, updates, imageFile) {
-    let imageUrl = updates.image_url
-    if (imageFile) imageUrl = await uploadItemImage(updates, imageFile)
+    const imageUrl = imageFile ? await uploadItemImage(imageFile) : updates.image_url
     const { data, error } = await supabase
       .from('wishlist_items')
       .update({ ...updates, image_url: imageUrl })
       .eq('id', id).select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setWishlistItems(prev => prev.map(i => i.id === id ? data : i))
     showSaved()
     return data

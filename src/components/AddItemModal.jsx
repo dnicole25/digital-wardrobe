@@ -31,6 +31,7 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
   const [seasons, setSeasons] = useState([])
   const [productUrl, setProductUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const dropRef = useRef(null)
 
@@ -107,6 +108,7 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setSubmitting(true)
+    setSubmitError('')
     try {
       const itemData = {
         name: name.trim(),
@@ -123,7 +125,7 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
       onClose()
     } catch (err) {
       console.error('Failed to add item:', err)
-      alert('Failed to add item. Please try again.')
+      setSubmitError(err.message || 'Failed to save. Check your Supabase connection.')
     } finally {
       setSubmitting(false)
     }
@@ -330,6 +332,12 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
                 placeholder="https://…"
               />
             </div>
+
+            {submitError && (
+              <div style={{ fontSize: 12, color: '#c0392b', marginBottom: 12, padding: '8px 12px', background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 2 }}>
+                {submitError}
+              </div>
+            )}
 
             <button
               type="submit"
