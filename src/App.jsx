@@ -150,7 +150,7 @@ export default function App() {
 
   async function deleteWardrobeItem(id) {
     const { error } = await supabase.from('wardrobe_items').delete().eq('id', id)
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setWardrobeItems(prev => prev.filter(i => i.id !== id))
     setAnchored(prev => { const n = new Set(prev); n.delete(id); return n })
     showSaved()

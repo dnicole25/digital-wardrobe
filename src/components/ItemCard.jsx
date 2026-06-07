@@ -45,14 +45,18 @@ export default function ItemCard({
   onGenerateOutfit,
 }) {
   const [imageError, setImageError] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
-  function handleDelete() {
-    if (confirmDelete) {
-      onDelete(item.id)
-    } else {
-      setConfirmDelete(true)
-      setTimeout(() => setConfirmDelete(false), 2500)
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${item.name || 'this item'}"?`)) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await onDelete(item.id)
+    } catch (err) {
+      setDeleteError(err.message || 'Delete failed')
+      setDeleting(false)
     }
   }
 
@@ -124,12 +128,16 @@ export default function ItemCard({
           <button
             className="btn-icon"
             onClick={handleDelete}
-            title={confirmDelete ? 'Click again to confirm' : 'Delete'}
-            style={{ color: confirmDelete ? '#c0392b' : undefined }}
+            disabled={deleting}
+            title="Delete"
+            style={{ color: deleting ? 'var(--sand)' : undefined }}
           >
-            {confirmDelete ? '✓' : <TrashIcon />}
+            {deleting ? <span className="spin" style={{ fontSize: 12 }}>◌</span> : <TrashIcon />}
           </button>
         </div>
+        {deleteError && (
+          <div style={{ fontSize: 11, color: '#c0392b', padding: '4px 12px 8px' }}>{deleteError}</div>
+        )}
       </div>
 
       {showWishlistActions && (
