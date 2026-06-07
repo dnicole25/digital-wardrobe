@@ -140,6 +140,14 @@ Only use IDs from the provided items list.`
 const handlers = { parseUrl, analyzeImage, generateOutfit, getWeather, findSimilar, generateTripOutfit }
 
 export default async function handler(req, res) {
+  // Health check — visit /api/claude in a browser to verify the function works
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      ok: true,
+      hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+    })
+  }
+
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
