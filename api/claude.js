@@ -151,7 +151,27 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { action, ...params } = req.body || {}
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not set in environment variables' })
+  }
+
+  // Handle body — Vercel usually parses JSON automatically, but read raw as fallback
+  let body = req.body
+  if (!body || typeof body === 'string') {
+    try {
+      const raw = typeof body === 'string' ? body : await new Promise((resolve, reject) => {
+        let data = ''
+        req.on('data', chunk => { data += chunk })
+        req.on('end', () => resolve(data))
+        req.on('error', reject)
+      })
+      body = raw ? JSON.parse(raw) : {}
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON body' })
+    }
+  }
+
+  const { action, ...params } = body || {}
 
   if (!action || !handlers[action]) {
     return res.status(400).json({ error: `Unknown action: ${action}` })

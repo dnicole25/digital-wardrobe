@@ -82,11 +82,9 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
       const data = await parseItemFromUrl(urlInput)
       fillFromData(data)
       if (!productUrl) setProductUrl(urlInput)
-      const domain = new URL(urlInput).hostname.replace('www.', '')
-      if (data.source || domain) setName(prev => prev || data.name || '')
       setParseMsg({ type: 'success', text: '✓ Details filled in' })
-    } catch {
-      setParseMsg({ type: 'error', text: '✗ Could not parse URL' })
+    } catch (err) {
+      setParseMsg({ type: 'error', text: `✗ ${err.message || 'Could not reach AI service'}` })
     } finally {
       setParsing(false)
     }
