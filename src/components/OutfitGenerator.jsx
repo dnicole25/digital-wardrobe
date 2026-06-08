@@ -261,6 +261,7 @@ export default function OutfitGenerator({
                 onItemChange={item => handleSlotChange(slot, item)}
                 onAnchorToggle={onAnchorToggle}
                 isAnchored={anchored.has(outfit[slot])}
+                onClearSlot={() => handleSlotChange(slot, null)}
               />
             ))}
           </div>

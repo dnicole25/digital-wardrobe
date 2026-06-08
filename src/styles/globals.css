@@ -782,6 +782,30 @@ select.input-field {
 .slot-anchor:hover { color: var(--gold); }
 .slot-anchor.anchored { color: var(--gold); }
 
+.slot-remove {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--taupe);
+  font-size: 10px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  padding: 0;
+  z-index: 1;
+  opacity: 0;
+}
+.outfit-slot:hover .slot-remove { opacity: 1; }
+.slot-remove:hover { color: #c0392b; background: rgba(255,255,255,1); }
+
 /* ============================================================
    SAVED OUTFITS
    ============================================================ */

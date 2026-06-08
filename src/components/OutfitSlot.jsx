@@ -31,7 +31,7 @@ const ChevronRight = () => (
   </svg>
 )
 
-export default function OutfitSlot({ slotName, item, allItems, onItemChange, onAnchorToggle, isAnchored }) {
+export default function OutfitSlot({ slotName, item, allItems, onItemChange, onAnchorToggle, isAnchored, onClearSlot }) {
   const [imageError, setImageError] = useState(false)
 
   const categoryItems = allItems.filter(i => {
@@ -76,6 +76,16 @@ export default function OutfitSlot({ slotName, item, allItems, onItemChange, onA
       )}
 
       <div className="outfit-slot-label">{label}</div>
+
+      {item && onClearSlot && (
+        <button
+          className="slot-remove"
+          onClick={onClearSlot}
+          title="Remove from outfit"
+        >
+          ✕
+        </button>
+      )}
 
       {item && onAnchorToggle && (
         <button
