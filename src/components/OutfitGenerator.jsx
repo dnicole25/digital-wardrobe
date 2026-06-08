@@ -33,6 +33,7 @@ export default function OutfitGenerator({
   const anchoredWardrobeIds = [...anchored].filter(id => wardrobeItems.some(i => i.id === id))
 
   const fetchedForRef = useRef(null)
+  const excludedHistoryRef = useRef([])
 
   async function handleGetWeather(loc, dt, tod) {
     const l = (loc ?? location).trim()
@@ -68,10 +69,18 @@ export default function OutfitGenerator({
       }))
       const anchoredList = anchoredWardrobeIds
 
-      // On regenerate, tell Claude which non-anchored items were just shown so it picks fresh alternatives
-      const excludeIds = outfit
-        ? Object.values(outfit).filter(id => id && typeof id === 'string' && !anchored.has(id))
-        : []
+      // Accumulate all previously shown non-anchored item IDs so each regeneration
+      // explores genuinely new territory instead of cycling between two options.
+      // Reset the history when this is a brand-new generate (no outfit yet).
+      let excludeIds
+      if (!outfit) {
+        excludedHistoryRef.current = []
+        excludeIds = []
+      } else {
+        const currentIds = Object.values(outfit).filter(id => id && typeof id === 'string' && !anchored.has(id))
+        excludedHistoryRef.current = [...new Set([...excludedHistoryRef.current, ...currentIds])]
+        excludeIds = excludedHistoryRef.current
+      }
 
       const result = await generateOutfit({
         items: simplified,
