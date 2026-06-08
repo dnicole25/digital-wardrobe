@@ -34,9 +34,12 @@ async function parseUrl({ url }) {
     content: `Given this product URL: ${url}
 Infer as much as you can about this clothing/fashion item from the URL path and domain name alone.
 Return JSON only: { "name": "", "category": "", "color": "", "source": "", "occasions": [], "seasons": [] }
-Category must be one of: top, bottom, dress, outerwear, shoes, bag, jewelry, sunglasses, accessory, activewear, swimwear, other
-Occasions from: casual, work, date, wedding, formal event, party, vacation
-Seasons from: spring, summer, fall, winter`
+Rules:
+- "name" should be the item description only (e.g. "Floral Midi Dress"), never include the brand name in the name field
+- "source" should be the brand or store name (e.g. "Zara", "Net-a-Porter") inferred from the domain
+- Category must be one of: top, bottom, dress, outerwear, shoes, bag, jewelry, sunglasses, accessory, activewear, swimwear, other
+- Occasions from: casual, work, date, wedding, formal event, party, vacation
+- Seasons from: spring, summer, fall, winter`
   }])
   return parseJSON(text)
 }
