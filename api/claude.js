@@ -67,10 +67,14 @@ Seasons from: spring, summer, fall, winter`
   return parseJSON(text)
 }
 
-async function generateOutfit({ items, anchored, weather, timeOfDay, occasion, date, location }) {
+async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location }) {
   const anchoredList = anchored?.length
     ? `MUST INCLUDE these item IDs: ${anchored.join(', ')}`
     : 'No anchored items.'
+
+  const excludeNote = excludeIds?.length
+    ? `REGENERATION — these items were just shown. Pick DIFFERENT items for variety (do not reuse these IDs unless they are anchored): ${excludeIds.join(', ')}`
+    : ''
 
   const season = weather?.season || ''
   const timeLabel = timeOfDay === 'night' ? 'evening/night' : 'daytime'
@@ -101,6 +105,7 @@ ${timeNote}
 Available wardrobe items:
 ${JSON.stringify(items)}
 ${anchoredList}
+${excludeNote}
 
 Instructions:
 1. Select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the temperature'} and ${weather?.condition || 'the conditions'}

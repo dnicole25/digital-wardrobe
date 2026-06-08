@@ -68,9 +68,15 @@ export default function OutfitGenerator({
       }))
       const anchoredList = anchoredWardrobeIds
 
+      // On regenerate, tell Claude which non-anchored items were just shown so it picks fresh alternatives
+      const excludeIds = outfit
+        ? Object.values(outfit).filter(id => id && typeof id === 'string' && !anchored.has(id))
+        : []
+
       const result = await generateOutfit({
         items: simplified,
         anchored: anchoredList,
+        excludeIds,
         weather,
         timeOfDay,
         occasion,
