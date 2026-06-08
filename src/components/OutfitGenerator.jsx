@@ -3,7 +3,7 @@ import { generateOutfit, getWeather } from '../lib/claude'
 import OutfitSlot from './OutfitSlot'
 
 const OCCASIONS = ['casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
-const SLOTS = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+const SLOTS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
 function today() {
   return new Date().toISOString().split('T')[0]

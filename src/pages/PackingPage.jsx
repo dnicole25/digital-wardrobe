@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { generateTripOutfit } from '../lib/claude'
 
-const SLOT_KEYS = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+const SLOT_KEYS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
@@ -63,7 +63,7 @@ function DayCard({ day, tripDestination, wardrobeItems, usedItemIds, onUpdateDay
         items: simplified,
         usedIds: [...usedItemIds],
       })
-      const slots = { dress: result.dress, top: result.top, bottom: result.bottom, outerwear: result.outerwear, shoes: result.shoes, bag: result.bag, jewelry: result.jewelry, belt: result.belt, accessory: result.accessory }
+      const slots = { dress: result.dress, top: result.top, cardigan: result.cardigan, bottom: result.bottom, outerwear: result.outerwear, shoes: result.shoes, bag: result.bag, jewelry: result.jewelry, belt: result.belt, accessory: result.accessory }
       const notes = result.notes || ''
 
       onUpdateDay(day.date, time === 'day'
@@ -250,7 +250,7 @@ export default function PackingPage({ trips, wardrobeItems, onCreateTrip, onUpda
           items: simplified,
           usedIds: [...usedIds],
         })
-        const daySlots = { dress: dayResult.dress, top: dayResult.top, bottom: dayResult.bottom, outerwear: dayResult.outerwear, shoes: dayResult.shoes, bag: dayResult.bag, jewelry: dayResult.jewelry, belt: dayResult.belt, accessory: dayResult.accessory }
+        const daySlots = { dress: dayResult.dress, top: dayResult.top, cardigan: dayResult.cardigan, bottom: dayResult.bottom, outerwear: dayResult.outerwear, shoes: dayResult.shoes, bag: dayResult.bag, jewelry: dayResult.jewelry, belt: dayResult.belt, accessory: dayResult.accessory }
         Object.values(daySlots).forEach(id => id && usedIds.add(id))
 
         const nightResult = await generateTripOutfit({
@@ -260,7 +260,7 @@ export default function PackingPage({ trips, wardrobeItems, onCreateTrip, onUpda
           items: simplified,
           usedIds: [...usedIds],
         })
-        const nightSlots = { dress: nightResult.dress, top: nightResult.top, bottom: nightResult.bottom, outerwear: nightResult.outerwear, shoes: nightResult.shoes, bag: nightResult.bag, jewelry: nightResult.jewelry, belt: nightResult.belt, accessory: nightResult.accessory }
+        const nightSlots = { dress: nightResult.dress, top: nightResult.top, cardigan: nightResult.cardigan, bottom: nightResult.bottom, outerwear: nightResult.outerwear, shoes: nightResult.shoes, bag: nightResult.bag, jewelry: nightResult.jewelry, belt: nightResult.belt, accessory: nightResult.accessory }
         Object.values(nightSlots).forEach(id => id && usedIds.add(id))
 
         updatedDays[i] = {
