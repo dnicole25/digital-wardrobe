@@ -123,25 +123,138 @@ Rules:
   return parseJSON(text)
 }
 
+// ── Real weather via Open-Meteo (no API key required) ──────────────────────
+
+const WMO_CONDITIONS = {
+  0: 'Sunny', 1: 'Mostly Clear', 2: 'Partly Cloudy', 3: 'Overcast',
+  45: 'Foggy', 48: 'Foggy',
+  51: 'Light Drizzle', 53: 'Drizzle', 55: 'Heavy Drizzle',
+  56: 'Freezing Drizzle', 57: 'Heavy Freezing Drizzle',
+  61: 'Light Rain', 63: 'Rain', 65: 'Heavy Rain',
+  66: 'Freezing Rain', 67: 'Heavy Freezing Rain',
+  71: 'Light Snow', 73: 'Snow', 75: 'Heavy Snow', 77: 'Snow Grains',
+  80: 'Rain Showers', 81: 'Rain Showers', 82: 'Heavy Rain Showers',
+  85: 'Snow Showers', 86: 'Heavy Snow Showers',
+  95: 'Thunderstorm', 96: 'Thunderstorm with Hail', 99: 'Severe Thunderstorm',
+}
+
+function wmoToCondition(code) {
+  return WMO_CONDITIONS[code] || 'Partly Cloudy'
+}
+
+function getSeason(dateStr, latitude) {
+  const month = new Date(dateStr + 'T12:00:00Z').getUTCMonth() + 1
+  const north = latitude >= 0
+  if (north) {
+    if (month >= 3 && month <= 5) return 'spring'
+    if (month >= 6 && month <= 8) return 'summer'
+    if (month >= 9 && month <= 11) return 'fall'
+    return 'winter'
+  } else {
+    if (month >= 3 && month <= 5) return 'fall'
+    if (month >= 6 && month <= 8) return 'winter'
+    if (month >= 9 && month <= 11) return 'spring'
+    return 'summer'
+  }
+}
+
+function weatherRecommendation(condition, temp, timeOfDay) {
+  const c = condition.toLowerCase()
+  if (c.includes('thunder')) return 'waterproof jacket, closed-toe shoes, and an umbrella'
+  if (c.includes('snow') || c.includes('freezing')) return 'warm coat, waterproof boots, and layers'
+  if (c.includes('rain') || c.includes('drizzle')) return 'light rain jacket and practical footwear'
+  if (c.includes('fog')) return 'light layers and comfortable shoes'
+  if (temp < 32) return 'heavy coat, gloves, scarf, and warm layers'
+  if (temp < 45) return 'warm coat and layers'
+  if (temp < 60) return 'jacket or light coat'
+  if (temp < 70) return 'light layers or a cardigan'
+  if (temp >= 85) return 'light breathable fabrics and sun protection'
+  return timeOfDay === 'night' ? 'light layers for the evening' : 'light, comfortable layers'
+}
+
+async function fetchRealWeather(lat, lon, date, timeOfDay) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(date + 'T00:00:00')
+  const daysOut = Math.floor((target - today) / 86400000)
+
+  // Open-Meteo forecast covers today through ~16 days ahead
+  // ERA5 historical archive covers everything before today
+  const baseUrl = daysOut >= 0
+    ? 'https://api.open-meteo.com/v1/forecast'
+    : 'https://archive-api.open-meteo.com/v1/era5'
+
+  const params = new URLSearchParams({
+    latitude: lat, longitude: lon,
+    daily: 'temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weathercode',
+    temperature_unit: 'fahrenheit',
+    timezone: 'auto',
+    start_date: date, end_date: date,
+  })
+
+  const res = await fetch(`${baseUrl}?${params}`)
+  if (!res.ok) throw new Error(`Open-Meteo error ${res.status}`)
+  const data = await res.json()
+  if (!data.daily?.temperature_2m_max?.[0] == null) throw new Error('No data')
+
+  const d = data.daily
+  const isNight = timeOfDay === 'night'
+  const temp = Math.round(isNight ? d.temperature_2m_min[0] : d.temperature_2m_max[0])
+  const feels_like = Math.round(
+    isNight
+      ? (d.apparent_temperature_min?.[0] ?? d.temperature_2m_min[0])
+      : (d.apparent_temperature_max?.[0] ?? d.temperature_2m_max[0])
+  )
+  const condition = wmoToCondition(d.weathercode[0])
+  return { temp, feels_like, condition }
+}
+
 async function getWeather({ location, date, timeOfDay }) {
+  // Step 1 — geocode location
+  let lat, lon
+  try {
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
+    )
+    const geo = await geoRes.json()
+    if (!geo.results?.length) throw new Error('Location not found')
+    lat = geo.results[0].latitude
+    lon = geo.results[0].longitude
+  } catch {
+    return getWeatherFromClaude({ location, date, timeOfDay })
+  }
+
+  // Step 2 — check if date is within Open-Meteo range (historical + 16-day forecast)
+  // Dates more than 16 days in the future fall back to Claude seasonal estimate
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const daysOut = Math.floor((new Date(date + 'T00:00:00') - today) / 86400000)
+  if (daysOut > 16) {
+    return getWeatherFromClaude({ location, date, timeOfDay })
+  }
+
+  // Step 3 — fetch real weather
+  try {
+    const { temp, feels_like, condition } = await fetchRealWeather(lat, lon, date, timeOfDay)
+    const season = getSeason(date, lat)
+    const recommendation = weatherRecommendation(condition, temp, timeOfDay)
+    return { temp, feels_like, condition, season, recommendation }
+  } catch {
+    return getWeatherFromClaude({ location, date, timeOfDay })
+  }
+}
+
+async function getWeatherFromClaude({ location, date, timeOfDay }) {
   const timeContext = timeOfDay === 'night' ? 'evening and overnight' : 'daytime'
   const text = await callAnthropic([{
     role: 'user',
     content: `What is the typical weather in ${location} on ${date} during ${timeContext} hours?
-Return JSON only:
-{
-  "temp": 72,
-  "condition": "Sunny",
-  "feels_like": 70,
-  "season": "summer",
-  "recommendation": "light layers for the evening"
-}
-Rules:
-- temp: typical ${timeContext} temperature in °F (daytime high if day, overnight low if night)
-- condition: expected sky/weather condition during ${timeContext} (e.g. Sunny, Partly Cloudy, Rainy, Snowy, Clear, Humid)
-- feels_like: what it feels like accounting for humidity or wind
-- season: the meteorological season for ${location} at this time of year
-- recommendation: one short phrase about what to wear given the temp and conditions`
+Return JSON only: { "temp": 72, "condition": "Sunny", "feels_like": 70, "season": "summer", "recommendation": "light layers" }
+- temp: typical ${timeContext} temperature in °F
+- condition: e.g. Sunny, Partly Cloudy, Rainy, Snowy
+- feels_like: accounting for humidity or wind
+- season: meteorological season for ${location} at this time of year
+- recommendation: one short phrase about what to wear`
   }])
   return parseJSON(text)
 }
