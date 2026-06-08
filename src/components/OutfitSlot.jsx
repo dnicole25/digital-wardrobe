@@ -55,6 +55,7 @@ export default function OutfitSlot({ slotName, item, allItems, onItemChange, onA
   }
 
   const label = slotName.charAt(0).toUpperCase() + slotName.slice(1)
+  const hasImage = item && item.image_url && !imageError
 
   return (
     <div className="outfit-slot">
@@ -80,7 +81,7 @@ export default function OutfitSlot({ slotName, item, allItems, onItemChange, onA
 
       {item && onClearSlot && (
         <button
-          className="slot-remove"
+          className={`slot-remove${hasImage ? '' : ' always-visible'}`}
           onClick={onClearSlot}
           title="Remove from outfit"
         >

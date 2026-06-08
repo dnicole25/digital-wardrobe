@@ -804,6 +804,7 @@ select.input-field {
   opacity: 0;
 }
 .outfit-slot:hover .slot-remove { opacity: 1; }
+.slot-remove.always-visible { opacity: 0.75; }
 .slot-remove:hover { color: #c0392b; background: rgba(255,255,255,1); }
 
 /* ============================================================
