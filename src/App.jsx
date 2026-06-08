@@ -79,23 +79,6 @@ export default function App() {
 
   const [anchored, setAnchored] = useState(new Set())
 
-  // Restore anchored items from localStorage when the user is known
-  useEffect(() => {
-    if (!user) { setAnchored(new Set()); return }
-    try {
-      const stored = localStorage.getItem(`wardrobe-anchored-${user.id}`)
-      if (stored) setAnchored(new Set(JSON.parse(stored)))
-    } catch { setAnchored(new Set()) }
-  }, [user?.id])
-
-  // Persist anchored items to localStorage whenever they change
-  useEffect(() => {
-    if (!user) return
-    try {
-      localStorage.setItem(`wardrobe-anchored-${user.id}`, JSON.stringify([...anchored]))
-    } catch {}
-  }, [anchored, user?.id])
-
   // Auth
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
