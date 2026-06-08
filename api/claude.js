@@ -70,32 +70,17 @@ Seasons from: spring, summer, fall, winter`
 function buildInspirationContext(inspiration) {
   if (!inspiration?.length) return { text: '', imageInputs: [] }
 
-  // Pinterest boards: extract board name from URL path as a style text hint
-  const boardNames = inspiration
-    .filter(i => i.source === 'pinterest' && i.pinterest_url)
-    .map(i => {
-      try {
-        const parts = new URL(i.pinterest_url).pathname.split('/').filter(Boolean)
-        const name = parts.length >= 2 ? parts[1] : parts[0]
-        return name ? name.replace(/-/g, ' ') : null
-      } catch { return null }
-    })
-    .filter(Boolean)
-
-  // Uploaded images: pass as vision inputs (up to 4)
+  // Uploaded inspiration images passed as vision inputs (up to 4)
   const imageInputs = inspiration
-    .filter(i => i.source === 'upload' && i.image_url)
+    .filter(i => i.image_url)
     .slice(0, 4)
     .map(i => ({ type: 'image', source: { type: 'url', url: i.image_url } }))
 
-  const boardText = boardNames.length
-    ? `\nStyle inspiration from the user's Pinterest boards: "${boardNames.join('", "')}". Let these aesthetic themes guide the overall look and feel.`
-    : ''
-  const imageText = imageInputs.length
-    ? `\n${imageInputs.length} style inspiration image(s) are included above — use the aesthetic, colour palette, and styling cues from those images to inform the outfit.`
+  const text = imageInputs.length
+    ? `\n${imageInputs.length} style inspiration image(s) are included above — use the aesthetic, colour palette, silhouette, and styling cues from those images to inform the outfit.`
     : ''
 
-  return { text: boardText + imageText, imageInputs }
+  return { text, imageInputs }
 }
 
 async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location, inspiration }) {

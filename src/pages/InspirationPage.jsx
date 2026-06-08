@@ -1,8 +1,7 @@
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { fileToBase64 } from '../lib/storage'
 
 export default function InspirationPage({ images, userId, onAddImage, onDeleteImage }) {
-  const [pinterestUrl, setPinterestUrl] = useState('')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef(null)
 
@@ -28,133 +27,68 @@ export default function InspirationPage({ images, userId, onAddImage, onDeleteIm
     }
   }
 
-  function handleAddPinterest() {
-    const url = pinterestUrl.trim()
-    if (!url) return
-    onAddImage({
-      image_url: null,
-      source: 'pinterest',
-      pinterest_url: url,
-    })
-    setPinterestUrl('')
+  function handleDrop(e) {
+    e.preventDefault()
+    handleFileUpload(e.dataTransfer.files)
   }
 
-  function getBoardName(url) {
-    try {
-      const parts = new URL(url).pathname.split('/').filter(Boolean)
-      return parts.slice(-2).join(' / ')
-    } catch {
-      return 'Pinterest Board'
-    }
-  }
+  const uploadedImages = images.filter(img => img.source === 'upload' && img.image_url)
 
   return (
     <div>
       <div className="inspiration-header">
         <h2 className="section-title">Style Inspiration</h2>
-
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Pinterest URL */}
-          <div className="inspiration-add-row">
-            <input
-              type="url"
-              className="input-field"
-              placeholder="Pinterest board URL"
-              value={pinterestUrl}
-              onChange={e => setPinterestUrl(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddPinterest()}
-              style={{ width: 220 }}
-            />
-            <button className="btn-outline" onClick={handleAddPinterest} disabled={!pinterestUrl.trim()}>
-              Add Board
-            </button>
-          </div>
-
-          {/* Upload button */}
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={e => handleFileUpload(e.target.files)}
-            />
-            <button
-              className="btn-primary"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              {uploading ? <><span className="spin">◌</span> Uploading…</> : '↑ Upload'}
-            </button>
-          </div>
-        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: 'none' }}
+          onChange={e => handleFileUpload(e.target.files)}
+        />
+        <button
+          className="btn-primary"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? <><span className="spin">◌</span> Uploading…</> : '↑ Upload Images'}
+        </button>
       </div>
 
-      {images.length === 0 ? (
-        <div className="empty-state">
-          <h3>No inspiration yet</h3>
-          <p>Upload images or add Pinterest boards to build your style inspiration.</p>
+      <p style={{ fontSize: 13, color: 'var(--taupe)', marginBottom: 24, lineHeight: 1.6 }}>
+        Upload style photos — outfit ideas, editorial looks, or anything that captures your aesthetic.
+        These images are sent directly to the AI as visual references when generating outfits.
+      </p>
+
+      {uploadedImages.length === 0 ? (
+        <div
+          className="inspiration-dropzone"
+          onDragOver={e => e.preventDefault()}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div style={{ fontSize: 32, marginBottom: 12 }}>✦</div>
+          <p style={{ margin: 0, fontFamily: 'Cormorant Garamond', fontSize: 18, color: 'var(--charcoal)' }}>Drop images here</p>
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--taupe)' }}>or click to browse</p>
         </div>
       ) : (
-        <div className="inspiration-grid">
-          {images.map(img => {
-            if (img.source === 'pinterest' || !img.image_url) {
-              return (
-                <div key={img.id} className="pinterest-card">
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>📌</div>
-                  <div style={{ fontSize: 13, color: 'var(--charcoal)', fontWeight: 400, marginBottom: 8 }}>
-                    {img.pinterest_url ? getBoardName(img.pinterest_url) : 'Pinterest Board'}
-                  </div>
-                  {img.pinterest_url && (
-                    <a
-                      href={img.pinterest_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase' }}
-                    >
-                      View Board →
-                    </a>
-                  )}
-                  <button
-                    onClick={() => onDeleteImage(img.id)}
-                    style={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      width: 24,
-                      height: 24,
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.9)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 12,
-                      color: 'var(--charcoal)',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )
-            }
-
-            return (
-              <div key={img.id} className="inspiration-card">
-                <img src={img.image_url} alt="Inspiration" />
-                <button
-                  className="inspiration-card-remove"
-                  onClick={() => onDeleteImage(img.id)}
-                  title="Remove"
-                >
-                  ✕
-                </button>
-                <div className="inspiration-card-source">{img.source}</div>
-              </div>
-            )
-          })}
+        <div
+          className="inspiration-grid"
+          onDragOver={e => e.preventDefault()}
+          onDrop={handleDrop}
+        >
+          {uploadedImages.map(img => (
+            <div key={img.id} className="inspiration-card">
+              <img src={img.image_url} alt="Inspiration" />
+              <button
+                className="inspiration-card-remove"
+                onClick={() => onDeleteImage(img.id)}
+                title="Remove"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

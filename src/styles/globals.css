@@ -1141,14 +1141,17 @@ select.input-field {
   color: var(--taupe);
 }
 
-.pinterest-card {
-  break-inside: avoid;
-  margin-bottom: 12px;
-  padding: 20px;
-  background: var(--ivory);
-  border: 1px solid var(--border);
+.inspiration-dropzone {
+  border: 1px dashed var(--border);
   border-radius: 2px;
+  padding: 80px 20px;
   text-align: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.inspiration-dropzone:hover {
+  background: var(--ivory);
+  border-color: var(--gold);
 }
 
 /* ============================================================
