@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { generateOutfit, getWeather } from '../lib/claude'
 import OutfitSlot from './OutfitSlot'
 
@@ -33,18 +33,33 @@ export default function OutfitGenerator({
 
   const itemById = useCallback(id => wardrobeItems.find(i => i.id === id) || null, [wardrobeItems])
 
-  async function handleGetWeather() {
-    if (!location.trim()) return
+  const fetchedForRef = useRef(null)
+
+  async function handleGetWeather(loc, dt, tod) {
+    const l = (loc ?? location).trim()
+    if (!l) return
+    const d = dt ?? date
+    const t = tod ?? timeOfDay
     setLoadingWeather(true)
     try {
-      const data = await getWeather(location, date)
+      const data = await getWeather(l, d, t)
       setWeather(data)
+      fetchedForRef.current = { location: l, date: d, timeOfDay: t }
     } catch {
       setWeather(null)
     } finally {
       setLoadingWeather(false)
     }
   }
+
+  useEffect(() => {
+    if (!fetchedForRef.current) return
+    const prev = fetchedForRef.current
+    if (prev.date !== date || prev.timeOfDay !== timeOfDay) {
+      handleGetWeather(prev.location, date, timeOfDay)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, timeOfDay])
 
   async function handleGenerate() {
     setGenerating(true)
@@ -60,6 +75,8 @@ export default function OutfitGenerator({
         weather,
         timeOfDay,
         occasion,
+        date,
+        location: location.trim() || undefined,
       })
       setOutfit(result)
     } catch (err) {
@@ -105,11 +122,11 @@ export default function OutfitGenerator({
               placeholder="City or location"
               value={location}
               onChange={e => setLocation(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleGetWeather()}
+              onKeyDown={e => e.key === 'Enter' && handleGetWeather(location)}
             />
             <button
               className="btn-outline"
-              onClick={handleGetWeather}
+              onClick={() => handleGetWeather()}
               disabled={loadingWeather || !location.trim()}
               style={{ flexShrink: 0 }}
             >
@@ -119,7 +136,7 @@ export default function OutfitGenerator({
           {weather && (
             <div className="weather-display" style={{ marginTop: 12 }}>
               <div className="weather-temp">{weather.temp}°F</div>
-              <div className="weather-condition">{weather.condition}</div>
+              <div className="weather-condition">{weather.condition}{weather.season ? ` · ${weather.season}` : ''}</div>
               <div className="weather-rec">{weather.recommendation}</div>
             </div>
           )}

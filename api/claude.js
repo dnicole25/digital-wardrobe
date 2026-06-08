@@ -67,35 +67,73 @@ Seasons from: spring, summer, fall, winter`
   return parseJSON(text)
 }
 
-async function generateOutfit({ items, anchored, weather, timeOfDay, occasion }) {
+async function generateOutfit({ items, anchored, weather, timeOfDay, occasion, date, location }) {
   const anchoredList = anchored?.length
     ? `MUST INCLUDE these item IDs: ${anchored.join(', ')}`
     : 'No anchored items.'
+
+  const season = weather?.season || ''
+  const timeLabel = timeOfDay === 'night' ? 'evening/night' : 'daytime'
   const weatherStr = weather
-    ? `Weather: ${weather.temp}°F, ${weather.condition}. Recommendation: ${weather.recommendation}`
+    ? `Temperature: ${weather.temp}°F (feels like ${weather.feels_like}°F), Conditions: ${weather.condition}. ${weather.recommendation}`
     : 'Weather: unknown'
+
+  const seasonNote = season
+    ? `Season: ${season}. STRONGLY prefer items tagged for ${season} in their seasons field. Items tagged for other seasons are less appropriate unless nothing else is available.`
+    : date ? `Date: ${date}. Choose seasonally appropriate items based on the time of year.` : ''
+
+  const timeNote = timeOfDay === 'night'
+    ? 'It is evening/night — temperatures will be cooler than the daytime high. Choose items suited for evening wear and account for the lower nighttime temperature.'
+    : 'It is daytime — choose items suited for the daytime temperature and conditions, including sun protection if it is sunny.'
 
   const text = await callAnthropic([{
     role: 'user',
-    content: `You are a fashion stylist. Create a cohesive outfit from these wardrobe items.
+    content: `You are a fashion stylist. Create a cohesive, weather-appropriate outfit.
 
-Items: ${JSON.stringify(items)}
-${anchoredList}
-${weatherStr}
-Time of day: ${timeOfDay || 'day'}
+Location: ${location || 'unspecified'}
+Date: ${date || 'unspecified'}
+Time: ${timeLabel}
 Occasion: ${occasion || 'casual'}
+${weatherStr}
+${seasonNote}
+${timeNote}
 
-Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "accessory": "id or null", "notes": "brief styling note" }
-Use null for slots with no suitable item. Only use IDs from the provided items list.`
+Available wardrobe items:
+${JSON.stringify(items)}
+${anchoredList}
+
+Instructions:
+1. Select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the temperature'} and ${weather?.condition || 'the conditions'}
+2. Prefer items whose seasons field includes "${season || 'the current season'}"
+3. If rainy or snowy conditions, include outerwear and practical footwear
+4. If sunny and warm, choose lighter fabrics and layers
+5. Match the formality to the occasion
+
+Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
+Use null for slots with no suitable item. Only use IDs from the provided list.`
   }])
   return parseJSON(text)
 }
 
-async function getWeather({ location, date }) {
+async function getWeather({ location, date, timeOfDay }) {
+  const timeContext = timeOfDay === 'night' ? 'evening and overnight' : 'daytime'
   const text = await callAnthropic([{
     role: 'user',
-    content: `What is the typical weather in ${location} on ${date}?
-Return JSON only: { "temp": 72, "condition": "Sunny", "feels_like": 70, "recommendation": "light layers" }`
+    content: `What is the typical weather in ${location} on ${date} during ${timeContext} hours?
+Return JSON only:
+{
+  "temp": 72,
+  "condition": "Sunny",
+  "feels_like": 70,
+  "season": "summer",
+  "recommendation": "light layers for the evening"
+}
+Rules:
+- temp: typical ${timeContext} temperature in °F (daytime high if day, overnight low if night)
+- condition: expected sky/weather condition during ${timeContext} (e.g. Sunny, Partly Cloudy, Rainy, Snowy, Clear, Humid)
+- feels_like: what it feels like accounting for humidity or wind
+- season: the meteorological season for ${location} at this time of year
+- recommendation: one short phrase about what to wear given the temp and conditions`
   }])
   return parseJSON(text)
 }
