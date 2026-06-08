@@ -6,7 +6,9 @@ const SLOT_CATEGORY_MAP = {
   outerwear: ['outerwear'],
   shoes: ['shoes'],
   bag: ['bag'],
-  accessory: ['accessory', 'jewelry', 'sunglasses'],
+  jewelry: ['jewelry'],
+  belt: ['belt'],
+  accessory: ['accessory', 'sunglasses'],
 }
 
 const AnchorIcon = ({ filled }) => (

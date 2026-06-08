@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { parseItemFromUrl, analyzeImage } from '../lib/claude'
 import { fileToBase64 } from '../lib/storage'
 
-const CATEGORIES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
+const CATEGORIES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
 const OCCASIONS = ['casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
 const SEASONS = ['spring', 'summer', 'fall', 'winter']
 

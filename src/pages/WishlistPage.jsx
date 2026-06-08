@@ -5,7 +5,7 @@ import EditItemModal from '../components/EditItemModal'
 import OutfitGenerator from '../components/OutfitGenerator'
 import { findSimilarItems } from '../lib/claude'
 
-const CATEGORIES = ['all', 'top', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
+const CATEGORIES = ['all', 'top', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
 const OCCASIONS = ['all', 'casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
 const SEASONS = ['all', 'spring', 'summer', 'fall', 'winter']
 

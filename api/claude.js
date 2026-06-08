@@ -37,7 +37,7 @@ Return JSON only: { "name": "", "category": "", "color": "", "source": "", "occa
 Rules:
 - "name" should be the item description only (e.g. "Floral Midi Dress"), never include the brand name in the name field
 - "source" should be the brand or store name (e.g. "Zara", "Net-a-Porter") inferred from the domain
-- Category must be one of: top, bottom, dress, outerwear, shoes, bag, jewelry, sunglasses, accessory, activewear, swimwear, other
+- Category must be one of: top, bottom, dress, outerwear, shoes, bag, jewelry, belt, sunglasses, accessory, activewear, swimwear, other
 - Occasions from: casual, work, date, wedding, formal event, party, vacation
 - Seasons from: spring, summer, fall, winter`
   }])
@@ -58,7 +58,7 @@ async function analyzeImage({ imageData }) {
         type: 'text',
         text: `Analyze this clothing/fashion item image.
 Return JSON only: { "name": "", "category": "", "color": "", "occasions": [], "seasons": [] }
-Category must be one of: top, bottom, dress, outerwear, shoes, bag, jewelry, sunglasses, accessory, activewear, swimwear, other
+Category must be one of: top, bottom, dress, outerwear, shoes, bag, jewelry, belt, sunglasses, accessory, activewear, swimwear, other
 Occasions from: casual, work, date, wedding, formal event, party, vacation
 Seasons from: spring, summer, fall, winter`
       }
@@ -109,7 +109,7 @@ Instructions:
 4. If sunny and warm, choose lighter fabrics and layers
 5. Match the formality to the occasion
 
-Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
+Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Use null for slots with no suitable item. Only use IDs from the provided list.`
   }])
   return parseJSON(text)
@@ -161,7 +161,7 @@ async function generateTripOutfit({ destination, date, timeOfDay, items, usedIds
     content: `You are a fashion stylist for a trip to ${destination}. Date: ${date}, Time: ${timeOfDay}.
 Wardrobe: ${JSON.stringify(items)}
 ${usedStr}
-Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "accessory": "id or null", "notes": "brief styling note" }
+Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
 Only use IDs from the provided items list.`
   }])
   return parseJSON(text)

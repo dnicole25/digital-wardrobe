@@ -4,13 +4,13 @@ import AddItemModal from '../components/AddItemModal'
 import EditItemModal from '../components/EditItemModal'
 import OutfitGenerator from '../components/OutfitGenerator'
 
-const CATEGORIES = ['all', 'top', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
+const CATEGORIES = ['all', 'top', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
 const OCCASIONS = ['all', 'casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
 const SEASONS = ['all', 'spring', 'summer', 'fall', 'winter']
 
 function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
   const slots = outfit.outfit_slots || {}
-  const slotKeys = ['top', 'bottom', 'outerwear', 'shoes', 'bag', 'accessory']
+  const slotKeys = ['top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
   const itemById = id => wardrobeItems.find(i => i.id === id)
 
   return (
