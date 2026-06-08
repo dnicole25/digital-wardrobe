@@ -95,6 +95,11 @@ export default function ItemCard({
 
       <div className="item-card-body">
         <div className="item-card-name">{item.name || 'Unnamed Item'}</div>
+        {item.source && (
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--taupe)', marginBottom: 6 }}>
+            {item.source}
+          </div>
+        )}
 
         <div className="item-card-tags">
           {item.category && <span className="tag">{item.category}</span>}

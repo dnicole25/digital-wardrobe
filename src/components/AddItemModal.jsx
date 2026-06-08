@@ -29,6 +29,7 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
   const [category, setCategory] = useState('')
   const [occasions, setOccasions] = useState([])
   const [seasons, setSeasons] = useState([])
+  const [source, setSource] = useState('')
   const [productUrl, setProductUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -69,6 +70,7 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
   function fillFromData(data) {
     if (data.name) setName(data.name)
     if (data.color) setColor(data.color)
+    if (data.source) setSource(data.source)
     if (data.category && CATEGORIES.includes(data.category)) setCategory(data.category)
     if (data.occasions?.length) setOccasions(data.occasions.filter(o => OCCASIONS.includes(o)))
     if (data.seasons?.length) setSeasons(data.seasons.filter(s => SEASONS.includes(s)))
@@ -113,6 +115,7 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
         category,
         color: color.trim(),
         size: size.trim(),
+        source: source.trim() || null,
         occasions,
         seasons,
         url: productUrl.trim() || urlInput.trim() || null,
@@ -266,6 +269,18 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
                   placeholder="e.g. M"
                 />
               </div>
+            </div>
+
+            {/* Brand / Store */}
+            <div className="form-group">
+              <label className="label">Brand / Store</label>
+              <input
+                type="text"
+                className="input-field"
+                value={source}
+                onChange={e => setSource(e.target.value)}
+                placeholder="e.g. Zara, Net-a-Porter"
+              />
             </div>
 
             {/* Category */}

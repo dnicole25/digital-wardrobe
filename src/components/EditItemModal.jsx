@@ -21,6 +21,7 @@ export default function EditItemModal({ item, onClose, onSave }) {
   const [name, setName] = useState(item.name || '')
   const [color, setColor] = useState(item.color || '')
   const [size, setSize] = useState(item.size || '')
+  const [source, setSource] = useState(item.source || '')
   const [category, setCategory] = useState(item.category || '')
   const [occasions, setOccasions] = useState(item.occasions || [])
   const [seasons, setSeasons] = useState(item.seasons || [])
@@ -84,6 +85,7 @@ export default function EditItemModal({ item, onClose, onSave }) {
         category,
         color: color.trim(),
         size: size.trim(),
+        source: source.trim() || null,
         occasions,
         seasons,
         url: productUrl.trim() || null,
@@ -165,6 +167,11 @@ export default function EditItemModal({ item, onClose, onSave }) {
                 <label className="label">Size</label>
                 <input type="text" className="input-field" value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. M" />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="label">Brand / Store</label>
+              <input type="text" className="input-field" value={source} onChange={e => setSource(e.target.value)} placeholder="e.g. Zara, Net-a-Porter" />
             </div>
 
             <div className="form-group">
