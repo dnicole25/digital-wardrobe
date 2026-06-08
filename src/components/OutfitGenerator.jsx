@@ -27,11 +27,10 @@ export default function OutfitGenerator({
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const effectiveAnchored = preAnchoredItem
-    ? new Set([...anchored, preAnchoredItem.id])
-    : anchored
-
   const itemById = useCallback(id => wardrobeItems.find(i => i.id === id) || null, [wardrobeItems])
+
+  // Only anchor IDs that exist in wardrobeItems — wishlist IDs can't be included in generation
+  const anchoredWardrobeIds = [...anchored].filter(id => wardrobeItems.some(i => i.id === id))
 
   const fetchedForRef = useRef(null)
 
@@ -67,7 +66,7 @@ export default function OutfitGenerator({
       const simplified = wardrobeItems.map(({ id, name, category, color, occasions, seasons }) => ({
         id, name, category, color, occasions, seasons
       }))
-      const anchoredList = [...effectiveAnchored]
+      const anchoredList = anchoredWardrobeIds
 
       const result = await generateOutfit({
         items: simplified,
@@ -189,8 +188,25 @@ export default function OutfitGenerator({
       </div>
 
       {preAnchoredItem && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--ivory)', border: '1px solid var(--border)', borderRadius: 2, fontSize: 12, color: 'var(--taupe)' }}>
-          ⚓ Anchored: <strong style={{ color: 'var(--charcoal)' }}>{preAnchoredItem.name}</strong>
+        <div style={{ marginBottom: 8, padding: '8px 14px', background: 'var(--ivory)', border: '1px solid var(--border)', borderRadius: 2, fontSize: 12, color: 'var(--taupe)' }}>
+          Building outfit around: <strong style={{ color: 'var(--charcoal)' }}>{preAnchoredItem.name}</strong>
+        </div>
+      )}
+
+      {anchoredWardrobeIds.length > 0 && (
+        <div style={{ marginBottom: 16, padding: '8px 14px', background: 'var(--ivory)', border: '1px solid var(--border)', borderRadius: 2, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--taupe)', marginRight: 2 }}>⚓ Must include:</span>
+          {anchoredWardrobeIds.map(id => {
+            const item = wardrobeItems.find(i => i.id === id)
+            return item ? (
+              <span key={id} className="anchored-chip">
+                {item.name}
+                {onAnchorToggle && (
+                  <button className="anchored-chip-remove" onClick={() => onAnchorToggle(id)} title="Unanchor">×</button>
+                )}
+              </span>
+            ) : null
+          })}
         </div>
       )}
 
@@ -218,7 +234,7 @@ export default function OutfitGenerator({
                 allItems={wardrobeItems}
                 onItemChange={item => handleSlotChange(slot, item)}
                 onAnchorToggle={onAnchorToggle}
-                isAnchored={effectiveAnchored.has(outfit[slot])}
+                isAnchored={anchored.has(outfit[slot])}
               />
             ))}
           </div>

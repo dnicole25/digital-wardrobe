@@ -123,8 +123,6 @@ export default function WishlistPage({
                 item={item}
                 onEdit={setEditingItem}
                 onDelete={onDeleteItem}
-                onAnchorToggle={onAnchorToggle}
-                isAnchored={anchored.has(item.id)}
                 showWishlistActions
                 onMoveToWardrobe={onMoveToWardrobe}
                 onFindSimilar={handleFindSimilar}

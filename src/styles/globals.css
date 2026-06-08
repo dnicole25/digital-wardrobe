@@ -1150,6 +1150,91 @@ select.input-field {
 }
 
 /* ============================================================
+   ANCHORED BAR
+   ============================================================ */
+.anchored-bar {
+  position: sticky;
+  top: 64px;
+  z-index: 99;
+  background: var(--ivory);
+  border-bottom: 1px solid var(--border);
+  animation: fadeIn 0.2s ease;
+}
+
+.anchored-bar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.anchored-bar-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.anchored-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px 3px 10px;
+  background: var(--charcoal);
+  color: var(--cream);
+  border-radius: 20px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+}
+
+.anchored-chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--sand);
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.anchored-chip-remove:hover { color: var(--cream); background: rgba(255,255,255,0.2); }
+
+.anchored-bar-clear {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  padding: 3px 8px;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.anchored-bar-clear:hover { color: var(--charcoal); }
+
+@media (max-width: 768px) {
+  .anchored-bar-inner { padding: 8px 16px; }
+}
+
+/* ============================================================
    LOADING
    ============================================================ */
 .loading-spinner {

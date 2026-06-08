@@ -29,6 +29,29 @@ const SparkleIcon = () => (
   </svg>
 )
 
+function AnchoredBar({ anchored, wardrobeItems, onAnchorToggle, onClearAll }) {
+  const anchoredItems = [...anchored]
+    .map(id => wardrobeItems.find(i => i.id === id))
+    .filter(Boolean)
+  if (anchoredItems.length === 0) return null
+  return (
+    <div className="anchored-bar">
+      <div className="anchored-bar-inner">
+        <span className="anchored-bar-label">⚓ Anchored</span>
+        {anchoredItems.map(item => (
+          <span key={item.id} className="anchored-chip">
+            {item.name}
+            <button className="anchored-chip-remove" onClick={() => onAnchorToggle(item.id)} title="Unanchor">×</button>
+          </span>
+        ))}
+        {anchoredItems.length > 1 && (
+          <button className="anchored-bar-clear" onClick={onClearAll}>Clear all</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const NAV_TABS = [
   { key: 'wardrobe', label: 'Wardrobe', icon: <HangerIcon /> },
   { key: 'wishlist', label: 'Wishlist', icon: <HeartIcon /> },
@@ -309,6 +332,8 @@ export default function App() {
     })
   }, [])
 
+  const handleClearAnchored = useCallback(() => setAnchored(new Set()), [])
+
   // --- Auth handlers ---
   async function handleAuth(e) {
     e.preventDefault()
@@ -440,6 +465,13 @@ export default function App() {
 
       <div className="gradient-strip" />
 
+      <AnchoredBar
+        anchored={anchored}
+        wardrobeItems={wardrobeItems}
+        onAnchorToggle={handleAnchorToggle}
+        onClearAll={handleClearAnchored}
+      />
+
       <main className="main-content">
         {activeTab === 'wardrobe' && (
           <WardrobePage
@@ -470,6 +502,8 @@ export default function App() {
           <PackingPage
             trips={trips}
             wardrobeItems={wardrobeItems}
+            anchored={anchored}
+            onAnchorToggle={handleAnchorToggle}
             onCreateTrip={createTrip}
             onUpdateTrip={updateTrip}
             onDeleteTrip={deleteTrip}
