@@ -45,6 +45,8 @@ export default function App() {
   const [savedKey, setSavedKey] = useState(0)
   const [storageError, setStorageError] = useState(false)
   const [imageWarning, setImageWarning] = useState('')
+  const [dataLoadError, setDataLoadError] = useState('')
+  const [dataLoading, setDataLoading] = useState(false)
 
   const [wardrobeItems, setWardrobeItems] = useState([])
   const [wishlistItems, setWishlistItems] = useState([])
@@ -83,7 +85,18 @@ export default function App() {
     }
   }, [user])
 
+  // Re-fetch when the user returns to the tab
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible' && user) loadAllData()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [user])
+
   async function loadAllData() {
+    setDataLoading(true)
+    setDataLoadError('')
     try {
       const [w, wl, o, t, i] = await Promise.all([
         supabase.from('wardrobe_items').select('*').order('created_at', { ascending: false }),
@@ -92,13 +105,25 @@ export default function App() {
         supabase.from('trips').select('*').order('created_at', { ascending: false }),
         supabase.from('inspiration_images').select('*').order('created_at', { ascending: false }),
       ])
+
+      // Supabase returns errors in the response object, not as thrown exceptions
+      const firstError = [w, wl, o, t, i].find(r => r.error)?.error
+      if (firstError) {
+        setDataLoadError(`Could not load your data: ${firstError.message}`)
+        console.error('Supabase load error:', firstError)
+        return
+      }
+
       setWardrobeItems(w.data || [])
       setWishlistItems(wl.data || [])
       setSavedOutfits(o.data || [])
       setTrips(t.data || [])
       setInspirationImages(i.data || [])
     } catch (err) {
+      setDataLoadError(`Could not load your data: ${err.message}`)
       console.error('Failed to load data:', err)
+    } finally {
+      setDataLoading(false)
     }
   }
 
@@ -183,7 +208,7 @@ export default function App() {
 
   async function deleteWishlistItem(id) {
     const { error } = await supabase.from('wishlist_items').delete().eq('id', id)
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setWishlistItems(prev => prev.filter(i => i.id !== id))
     showSaved()
   }
@@ -194,7 +219,7 @@ export default function App() {
       .from('wardrobe_items')
       .insert([{ ...itemData, user_id: user.id }])
       .select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     await supabase.from('wishlist_items').delete().eq('id', id)
     setWardrobeItems(prev => [data, ...prev])
     setWishlistItems(prev => prev.filter(i => i.id !== id))
@@ -207,14 +232,14 @@ export default function App() {
       .from('saved_outfits')
       .insert([{ ...outfitData, user_id: user.id }])
       .select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setSavedOutfits(prev => [data, ...prev])
     showSaved()
   }
 
   async function deleteOutfit(id) {
     const { error } = await supabase.from('saved_outfits').delete().eq('id', id)
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setSavedOutfits(prev => prev.filter(o => o.id !== id))
     showSaved()
   }
@@ -225,7 +250,7 @@ export default function App() {
       .from('trips')
       .insert([{ ...tripData, user_id: user.id }])
       .select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setTrips(prev => [data, ...prev])
     showSaved()
   }
@@ -235,14 +260,14 @@ export default function App() {
       .from('trips')
       .update(updates)
       .eq('id', id).select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setTrips(prev => prev.map(t => t.id === id ? data : t))
     showSaved()
   }
 
   async function deleteTrip(id) {
     const { error } = await supabase.from('trips').delete().eq('id', id)
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setTrips(prev => prev.filter(t => t.id !== id))
     showSaved()
   }
@@ -262,14 +287,14 @@ export default function App() {
       .from('inspiration_images')
       .insert([{ ...cleanData, image_url: imageUrl, user_id: user.id }])
       .select().single()
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setInspirationImages(prev => [data, ...prev])
     showSaved()
   }
 
   async function deleteInspirationImage(id) {
     const { error } = await supabase.from('inspiration_images').delete().eq('id', id)
-    if (error) throw error
+    if (error) throw new Error(error.message)
     setInspirationImages(prev => prev.filter(i => i.id !== id))
     showSaved()
   }
@@ -372,13 +397,21 @@ export default function App() {
         <div className="header-inner">
           <div className="header-brand">
             <span className="header-title">Dana's Digital Wardrobe</span>
-            {savedIndicator && (
+            {dataLoading && (
+              <span style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand)' }}>
+                <span className="spin" style={{ display: 'inline-block', marginRight: 4 }}>◌</span> Loading…
+              </span>
+            )}
+            {savedIndicator && !dataLoading && (
               <span key={savedKey} className="saved-indicator">✓ Saved</span>
+            )}
+            {dataLoadError && (
+              <span className="storage-error" title={dataLoadError}>⚠ Load error</span>
             )}
             {imageWarning && (
               <span className="storage-error" title={imageWarning}>⚠ Image upload failed</span>
             )}
-            {storageError && !imageWarning && (
+            {storageError && !imageWarning && !dataLoadError && (
               <span className="storage-error">⚠ Storage error</span>
             )}
           </div>
