@@ -15,6 +15,7 @@ export default function OutfitGenerator({
   onSaveOutfit,
   onAnchorToggle,
   preAnchoredItem,
+  inspirationItems = [],
 }) {
   const [location, setLocation] = useState('')
   const [weather, setWeather] = useState(null)
@@ -91,6 +92,7 @@ export default function OutfitGenerator({
         occasion,
         date,
         location: location.trim() || undefined,
+        inspiration: inspirationItems,
       })
 
       // Preserve anchored slots, but respect dress/top+bottom exclusivity in the new result

@@ -67,7 +67,38 @@ Seasons from: spring, summer, fall, winter`
   return parseJSON(text)
 }
 
-async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location }) {
+function buildInspirationContext(inspiration) {
+  if (!inspiration?.length) return { text: '', imageInputs: [] }
+
+  // Pinterest boards: extract board name from URL path as a style text hint
+  const boardNames = inspiration
+    .filter(i => i.source === 'pinterest' && i.pinterest_url)
+    .map(i => {
+      try {
+        const parts = new URL(i.pinterest_url).pathname.split('/').filter(Boolean)
+        const name = parts.length >= 2 ? parts[1] : parts[0]
+        return name ? name.replace(/-/g, ' ') : null
+      } catch { return null }
+    })
+    .filter(Boolean)
+
+  // Uploaded images: pass as vision inputs (up to 4)
+  const imageInputs = inspiration
+    .filter(i => i.source === 'upload' && i.image_url)
+    .slice(0, 4)
+    .map(i => ({ type: 'image', source: { type: 'url', url: i.image_url } }))
+
+  const boardText = boardNames.length
+    ? `\nStyle inspiration from the user's Pinterest boards: "${boardNames.join('", "')}". Let these aesthetic themes guide the overall look and feel.`
+    : ''
+  const imageText = imageInputs.length
+    ? `\n${imageInputs.length} style inspiration image(s) are included above — use the aesthetic, colour palette, and styling cues from those images to inform the outfit.`
+    : ''
+
+  return { text: boardText + imageText, imageInputs }
+}
+
+async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location, inspiration }) {
   const anchoredList = anchored?.length
     ? `MUST INCLUDE these item IDs: ${anchored.join(', ')}`
     : 'No anchored items.'
@@ -90,9 +121,9 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
     ? 'It is evening/night — temperatures will be cooler than the daytime high. Choose items suited for evening wear and account for the lower nighttime temperature.'
     : 'It is daytime — choose items suited for the daytime temperature and conditions, including sun protection if it is sunny.'
 
-  const text = await callAnthropic([{
-    role: 'user',
-    content: `You are a fashion stylist. Create a cohesive, weather-appropriate outfit.
+  const { text: inspirationText, imageInputs } = buildInspirationContext(inspiration)
+
+  const promptText = `You are a fashion stylist. Create a cohesive, weather-appropriate outfit.
 
 Location: ${location || 'unspecified'}
 Date: ${date || 'unspecified'}
@@ -101,6 +132,7 @@ Occasion: ${occasion || 'casual'}
 ${weatherStr}
 ${seasonNote}
 ${timeNote}
+${inspirationText}
 
 Available wardrobe items:
 ${JSON.stringify(items)}
@@ -113,6 +145,7 @@ Instructions:
 3. If rainy or snowy conditions, include outerwear and practical footwear
 4. If sunny and warm, choose lighter fabrics and layers
 5. Match the formality to the occasion
+6. Reflect the style aesthetic from any inspiration boards or images provided
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Rules:
@@ -120,7 +153,12 @@ Rules:
 - Cardigan layers over a top or dress: if cardigan is set with a top, the top must be a tank or sleeveless style. If cardigan is set with a dress, top and bottom must be null.
 - Only populate slots that genuinely contribute to the outfit. Set slots to null when that item type is not needed.
 - Only use IDs from the provided list.`
-  }])
+
+  const content = imageInputs.length
+    ? [...imageInputs, { type: 'text', text: promptText }]
+    : promptText
+
+  const text = await callAnthropic([{ role: 'user', content }])
   return parseJSON(text)
 }
 

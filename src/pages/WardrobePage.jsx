@@ -77,6 +77,7 @@ export default function WardrobePage({
   onDeleteItem,
   onSaveOutfit,
   onDeleteOutfit,
+  inspirationItems = [],
 }) {
   const [subTab, setSubTab] = useState('items')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -169,6 +170,7 @@ export default function WardrobePage({
             anchored={anchored}
             onSaveOutfit={onSaveOutfit}
             onAnchorToggle={onAnchorToggle}
+            inspirationItems={inspirationItems}
           />
         </>
       )}

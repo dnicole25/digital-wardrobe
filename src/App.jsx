@@ -484,6 +484,7 @@ export default function App() {
             onDeleteItem={deleteWardrobeItem}
             onSaveOutfit={saveOutfit}
             onDeleteOutfit={deleteOutfit}
+            inspirationItems={inspirationImages}
           />
         )}
         {activeTab === 'wishlist' && (

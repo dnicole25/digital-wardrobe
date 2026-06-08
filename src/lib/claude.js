@@ -33,8 +33,8 @@ export async function analyzeImage(base64Image) {
   return callApi('analyzeImage', { imageData: base64Image })
 }
 
-export async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location }) {
-  return callApi('generateOutfit', { items, anchored, excludeIds, weather, timeOfDay, occasion, date, location })
+export async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location, inspiration }) {
+  return callApi('generateOutfit', { items, anchored, excludeIds, weather, timeOfDay, occasion, date, location, inspiration })
 }
 
 export async function getWeather(location, date, timeOfDay) {
