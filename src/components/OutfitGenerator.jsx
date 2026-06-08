@@ -77,7 +77,18 @@ export default function OutfitGenerator({
         date,
         location: location.trim() || undefined,
       })
-      setOutfit(result)
+
+      // Preserve any slot whose current item is anchored — only swap out un-anchored slots
+      setOutfit(prev => {
+        if (!prev) return result
+        const next = { ...result }
+        for (const slot of SLOTS) {
+          if (prev[slot] && anchored.has(prev[slot])) {
+            next[slot] = prev[slot]
+          }
+        }
+        return next
+      })
     } catch (err) {
       console.error('Outfit generation failed:', err)
       alert('Failed to generate outfit. Please try again.')
