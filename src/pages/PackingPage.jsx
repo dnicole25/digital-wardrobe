@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { generateTripOutfit } from '../lib/claude'
 
-const SLOT_KEYS = ['top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+const SLOT_KEYS = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
@@ -21,19 +21,22 @@ function getDatesInRange(start, end) {
 
 function MiniOutfitGrid({ outfitSlots, wardrobeItems }) {
   const itemById = id => wardrobeItems.find(i => i.id === id)
+  const hasDress = !!outfitSlots?.dress
+  const filledSlots = SLOT_KEYS.filter(slot => {
+    if ((slot === 'top' || slot === 'bottom') && hasDress) return false
+    return !!outfitSlots?.[slot]
+  })
 
   return (
     <div className="day-mini-grid">
-      {SLOT_KEYS.map(slot => {
-        const item = outfitSlots?.[slot] ? itemById(outfitSlots[slot]) : null
+      {filledSlots.map(slot => {
+        const item = itemById(outfitSlots[slot])
         return (
           <div key={slot} className="day-mini-slot">
             {item?.image_url ? (
               <img src={item.image_url} alt={item.name} />
-            ) : item ? (
-              <div className="day-mini-slot-label">{item.name?.slice(0, 10)}</div>
             ) : (
-              <div className="day-mini-slot-label">{slot}</div>
+              <div className="day-mini-slot-label">{item?.name?.slice(0, 10) || slot}</div>
             )}
           </div>
         )
@@ -60,7 +63,7 @@ function DayCard({ day, tripDestination, wardrobeItems, usedItemIds, onUpdateDay
         items: simplified,
         usedIds: [...usedItemIds],
       })
-      const slots = { top: result.top, bottom: result.bottom, outerwear: result.outerwear, shoes: result.shoes, bag: result.bag, jewelry: result.jewelry, belt: result.belt, accessory: result.accessory }
+      const slots = { dress: result.dress, top: result.top, bottom: result.bottom, outerwear: result.outerwear, shoes: result.shoes, bag: result.bag, jewelry: result.jewelry, belt: result.belt, accessory: result.accessory }
       const notes = result.notes || ''
 
       onUpdateDay(day.date, time === 'day'
@@ -247,7 +250,7 @@ export default function PackingPage({ trips, wardrobeItems, onCreateTrip, onUpda
           items: simplified,
           usedIds: [...usedIds],
         })
-        const daySlots = { top: dayResult.top, bottom: dayResult.bottom, outerwear: dayResult.outerwear, shoes: dayResult.shoes, bag: dayResult.bag, jewelry: dayResult.jewelry, belt: dayResult.belt, accessory: dayResult.accessory }
+        const daySlots = { dress: dayResult.dress, top: dayResult.top, bottom: dayResult.bottom, outerwear: dayResult.outerwear, shoes: dayResult.shoes, bag: dayResult.bag, jewelry: dayResult.jewelry, belt: dayResult.belt, accessory: dayResult.accessory }
         Object.values(daySlots).forEach(id => id && usedIds.add(id))
 
         const nightResult = await generateTripOutfit({
@@ -257,7 +260,7 @@ export default function PackingPage({ trips, wardrobeItems, onCreateTrip, onUpda
           items: simplified,
           usedIds: [...usedIds],
         })
-        const nightSlots = { top: nightResult.top, bottom: nightResult.bottom, outerwear: nightResult.outerwear, shoes: nightResult.shoes, bag: nightResult.bag, jewelry: nightResult.jewelry, belt: nightResult.belt, accessory: nightResult.accessory }
+        const nightSlots = { dress: nightResult.dress, top: nightResult.top, bottom: nightResult.bottom, outerwear: nightResult.outerwear, shoes: nightResult.shoes, bag: nightResult.bag, jewelry: nightResult.jewelry, belt: nightResult.belt, accessory: nightResult.accessory }
         Object.values(nightSlots).forEach(id => id && usedIds.add(id))
 
         updatedDays[i] = {

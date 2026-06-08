@@ -109,8 +109,11 @@ Instructions:
 4. If sunny and warm, choose lighter fabrics and layers
 5. Match the formality to the occasion
 
-Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
-Use null for slots with no suitable item. Only use IDs from the provided list.`
+Return JSON only: { "dress": "id or null", "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
+Rules:
+- Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null. If top or bottom is set, dress must be null.
+- Only populate slots that genuinely contribute to the outfit. Set slots to null when that item type is not needed.
+- Only use IDs from the provided list.`
   }])
   return parseJSON(text)
 }
@@ -161,8 +164,11 @@ async function generateTripOutfit({ destination, date, timeOfDay, items, usedIds
     content: `You are a fashion stylist for a trip to ${destination}. Date: ${date}, Time: ${timeOfDay}.
 Wardrobe: ${JSON.stringify(items)}
 ${usedStr}
-Return JSON only: { "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
-Only use IDs from the provided items list.`
+Return JSON only: { "dress": "id or null", "top": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
+Rules:
+- Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
+- Only populate slots that genuinely contribute to the outfit. Set unused slots to null.
+- Only use IDs from the provided items list.`
   }])
   return parseJSON(text)
 }

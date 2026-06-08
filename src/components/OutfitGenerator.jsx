@@ -3,7 +3,7 @@ import { generateOutfit, getWeather } from '../lib/claude'
 import OutfitSlot from './OutfitSlot'
 
 const OCCASIONS = ['casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
-const SLOTS = ['top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+const SLOTS = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
 function today() {
   return new Date().toISOString().split('T')[0]
@@ -78,11 +78,14 @@ export default function OutfitGenerator({
         location: location.trim() || undefined,
       })
 
-      // Preserve any slot whose current item is anchored — only swap out un-anchored slots
+      // Preserve anchored slots, but respect dress/top+bottom exclusivity in the new result
       setOutfit(prev => {
         if (!prev) return result
         const next = { ...result }
+        const resultHasDress = result.dress != null
         for (const slot of SLOTS) {
+          if (resultHasDress && (slot === 'top' || slot === 'bottom')) continue
+          if (!resultHasDress && slot === 'dress') continue
           if (prev[slot] && anchored.has(prev[slot])) {
             next[slot] = prev[slot]
           }
@@ -233,15 +236,21 @@ export default function OutfitGenerator({
           : '✦ Generate Outfit'}
       </button>
 
-      {/* Outfit grid */}
-      {outfit && (
+      {/* Outfit grid — only render slots Claude actually filled */}
+      {outfit && (() => {
+        const hasDress = outfit.dress != null
+        const displaySlots = SLOTS.filter(slot => {
+          if ((slot === 'top' || slot === 'bottom') && hasDress) return false
+          return outfit[slot] != null
+        })
+        return (
         <>
           <div className="outfit-grid">
-            {SLOTS.map(slot => (
+            {displaySlots.map(slot => (
               <OutfitSlot
                 key={slot}
                 slotName={slot}
-                item={outfit[slot] ? itemById(outfit[slot]) : null}
+                item={itemById(outfit[slot])}
                 allItems={wardrobeItems}
                 onItemChange={item => handleSlotChange(slot, item)}
                 onAnchorToggle={onAnchorToggle}
@@ -275,7 +284,8 @@ export default function OutfitGenerator({
             </button>
           </div>
         </>
-      )}
+        )
+      })()}
     </div>
   )
 }

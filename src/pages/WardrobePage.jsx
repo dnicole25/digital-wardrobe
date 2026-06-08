@@ -10,7 +10,12 @@ const SEASONS = ['all', 'spring', 'summer', 'fall', 'winter']
 
 function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
   const slots = outfit.outfit_slots || {}
-  const slotKeys = ['top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+  const allSlotKeys = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+  const hasDress = !!slots.dress
+  const filledSlots = allSlotKeys.filter(slot => {
+    if ((slot === 'top' || slot === 'bottom') && hasDress) return false
+    return !!slots[slot]
+  })
   const itemById = id => wardrobeItems.find(i => i.id === id)
 
   return (
@@ -37,19 +42,15 @@ function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
       </div>
 
       <div className="saved-outfit-mini-grid">
-        {slotKeys.map(slot => {
-          const item = slots[slot] ? itemById(slots[slot]) : null
+        {filledSlots.map(slot => {
+          const item = itemById(slots[slot])
           return (
             <div key={slot} className="mini-slot">
               {item?.image_url ? (
                 <img src={item.image_url} alt={item.name} />
-              ) : item ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 8, color: 'var(--taupe)', textAlign: 'center', padding: 4 }}>
-                  {item.name}
-                </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 8, color: 'var(--sand)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {slot}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 8, color: 'var(--taupe)', textAlign: 'center', padding: 4 }}>
+                  {item?.name || slot}
                 </div>
               )}
             </div>

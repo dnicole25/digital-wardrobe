@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 const SLOT_CATEGORY_MAP = {
+  dress: ['dress'],
   top: ['top'],
   bottom: ['bottom'],
   outerwear: ['outerwear'],
