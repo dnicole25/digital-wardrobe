@@ -103,7 +103,7 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
     : date ? `Date: ${date}. Choose seasonally appropriate items based on the time of year.` : ''
 
   const occasionNote = occasion
-    ? `Occasion: ${occasion}. STRONGLY prefer items whose occasions field includes "${occasion}". Do NOT select items whose occasions field is set but does not include "${occasion}" — only fall back to untagged items if no occasion-matched alternative exists.`
+    ? `Occasion: ${occasion}. STRONGLY prefer items whose occasions array includes "${occasion}". An item tagged for multiple occasions (e.g. ["work","casual"]) qualifies as long as "${occasion}" is one of them. Only exclude an item if its occasions array is non-empty AND does not contain "${occasion}" at all — items with an empty occasions array are neutral and may be used as a fallback.`
     : ''
 
   const timeNote = timeOfDay === 'night'
@@ -130,7 +130,7 @@ ${excludeNote}
 
 Instructions:
 1. Select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the temperature'} and ${weather?.condition || 'the conditions'}
-2. ONLY select items whose occasions field includes "${occasion || 'the selected occasion'}" — skip items tagged for other occasions
+2. ONLY select items whose occasions array includes "${occasion || 'the selected occasion'}", OR items with an empty occasions array (neutral pieces). An item tagged for multiple occasions qualifies as long as the selected occasion is one of them.
 3. Prefer items whose seasons field includes "${season || 'the current season'}"
 4. If rainy or snowy conditions, include outerwear and practical footwear
 5. If sunny and warm, choose lighter fabrics and layers
