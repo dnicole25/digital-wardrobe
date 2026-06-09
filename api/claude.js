@@ -331,6 +331,11 @@ async function generateWishlistOutfit({ anchoredItems, wardrobeItems, occasion, 
     ? `REGENERATION — these items were just shown. Pick DIFFERENT wardrobe items for variety (do not reuse these IDs): ${excludeIds.join(', ')}`
     : ''
 
+  // Build a clear slot assignment for each anchored wishlist item
+  const wishlistSlotLines = anchoredItems.map(i => `  • Slot "${i.category}" → MUST use id "${i.id}" (${i.name})`).join('\n')
+  const wishlistIds = anchoredItems.map(i => i.id)
+  const wardrobeIds = wardrobeItems.map(i => i.id)
+
   const text = await callAnthropic([{
     role: 'user',
     content: `You are a fashion stylist. Create a complete, cohesive outfit built around specific wishlist pieces.
@@ -338,21 +343,22 @@ async function generateWishlistOutfit({ anchoredItems, wardrobeItems, occasion, 
 Time: ${timeLabel}
 ${occasionNote}
 
-WISHLIST PIECES — MUST be placed in their correct category slots:
-${JSON.stringify(anchoredItems)}
+STEP 1 — Place these wishlist pieces in their exact slots. These are FIXED. Do not move them or use their IDs anywhere else:
+${wishlistSlotLines}
 
-WARDROBE items — fill all remaining slots from this list only:
+STEP 2 — Fill ALL remaining slots using ONLY the wardrobe IDs listed below. You MUST NOT use any wishlist ID (${wishlistIds.join(', ')}) in any slot other than the one assigned above.
+
+Wardrobe items available (use ONLY these IDs for non-wishlist slots):
 ${JSON.stringify(wardrobeItems)}
 ${excludeNote}
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
 Rules:
-- Wishlist pieces MUST appear in their correct category slots — do not omit them
-- All other slots must use ONLY IDs from the WARDROBE list
+- The fixed wishlist slots above are non-negotiable — use exactly those IDs in exactly those slots
+- Every other populated slot must contain a wardrobe ID from: [${wardrobeIds.join(', ')}]
 - Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
 - Cardigan layers over a tank/sleeveless top or over a dress. If cardigan is set with a dress, top and bottom must be null.
-- Only populate slots that genuinely contribute to the outfit. Set unused slots to null.
-- Only use IDs from the provided lists.`
+- Only populate slots that genuinely contribute to the outfit. Set unused slots to null.`
   }])
   return parseJSON(text)
 }
