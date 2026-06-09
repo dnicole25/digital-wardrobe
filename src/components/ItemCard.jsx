@@ -147,30 +147,36 @@ export default function ItemCard({
 
       {showWishlistActions && (
         <div className="item-card-wishlist-actions">
-          <button
-            className="btn-outline"
-            style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
-            onClick={() => onMoveToWardrobe(item)}
-            title="Move to wardrobe"
-          >
-            + Wardrobe
-          </button>
-          <button
-            className="btn-outline"
-            style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
-            onClick={() => onGenerateOutfit(item)}
-            title="Build outfit around this item"
-          >
-            ✦ Outfit
-          </button>
-          <button
-            className="btn-outline"
-            style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
-            onClick={() => onFindSimilar(item)}
-            title="Find similar items"
-          >
-            ⌕ Similar
-          </button>
+          {onMoveToWardrobe && (
+            <button
+              className="btn-outline"
+              style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+              onClick={() => onMoveToWardrobe(item)}
+              title="Move to wardrobe"
+            >
+              + Wardrobe
+            </button>
+          )}
+          {onGenerateOutfit && (
+            <button
+              className="btn-outline"
+              style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+              onClick={() => onGenerateOutfit(item)}
+              title="Build outfit around this item"
+            >
+              ✦ Outfit
+            </button>
+          )}
+          {onFindSimilar && (
+            <button
+              className="btn-outline"
+              style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+              onClick={() => onFindSimilar(item)}
+              title="Find similar items"
+            >
+              ⌕ Similar
+            </button>
+          )}
         </div>
       )}
     </div>

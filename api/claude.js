@@ -320,7 +320,44 @@ Rules:
   return parseJSON(text)
 }
 
-const handlers = { parseUrl, analyzeImage, generateOutfit, getWeather, findSimilar, generateTripOutfit }
+async function generateWishlistOutfit({ anchoredItems, wardrobeItems, occasion, timeOfDay, excludeIds }) {
+  const timeLabel = timeOfDay === 'night' ? 'evening/night' : 'daytime'
+
+  const occasionNote = occasion
+    ? `Occasion: ${occasion}. Prefer wardrobe items whose occasions array includes "${occasion}". An item qualifies if "${occasion}" is anywhere in its occasions array. Items with an empty occasions array are neutral and may be used.`
+    : ''
+
+  const excludeNote = excludeIds?.length
+    ? `REGENERATION — these items were just shown. Pick DIFFERENT wardrobe items for variety (do not reuse these IDs): ${excludeIds.join(', ')}`
+    : ''
+
+  const text = await callAnthropic([{
+    role: 'user',
+    content: `You are a fashion stylist. Create a complete, cohesive outfit built around specific wishlist pieces.
+
+Time: ${timeLabel}
+${occasionNote}
+
+WISHLIST PIECES — MUST be placed in their correct category slots:
+${JSON.stringify(anchoredItems)}
+
+WARDROBE items — fill all remaining slots from this list only:
+${JSON.stringify(wardrobeItems)}
+${excludeNote}
+
+Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
+Rules:
+- Wishlist pieces MUST appear in their correct category slots — do not omit them
+- All other slots must use ONLY IDs from the WARDROBE list
+- Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
+- Cardigan layers over a tank/sleeveless top or over a dress. If cardigan is set with a dress, top and bottom must be null.
+- Only populate slots that genuinely contribute to the outfit. Set unused slots to null.
+- Only use IDs from the provided lists.`
+  }])
+  return parseJSON(text)
+}
+
+const handlers = { parseUrl, analyzeImage, generateOutfit, getWeather, findSimilar, generateTripOutfit, generateWishlistOutfit }
 
 export default async function handler(req, res) {
   // Health check

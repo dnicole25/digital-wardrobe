@@ -48,3 +48,7 @@ export async function findSimilarItems(item, sources) {
 export async function generateTripOutfit({ destination, date, timeOfDay, items, usedIds }) {
   return callApi('generateTripOutfit', { destination, date, timeOfDay, items, usedIds })
 }
+
+export async function generateWishlistOutfit({ anchoredItems, wardrobeItems, occasion, timeOfDay, excludeIds }) {
+  return callApi('generateWishlistOutfit', { anchoredItems, wardrobeItems, occasion, timeOfDay, excludeIds })
+}
