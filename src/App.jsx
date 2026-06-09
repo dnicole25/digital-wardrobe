@@ -76,7 +76,6 @@ export default function App() {
   const [savedOutfits, setSavedOutfits] = useState([])
   const [trips, setTrips] = useState([])
   const [inspirationImages, setInspirationImages] = useState([])
-  const [wishlistPrices, setWishlistPrices] = useState([])
 
   const [anchored, setAnchored] = useState(new Set())
 
@@ -106,7 +105,6 @@ export default function App() {
       setSavedOutfits([])
       setTrips([])
       setInspirationImages([])
-      setWishlistPrices([])
     }
   }, [user])
 
@@ -123,17 +121,16 @@ export default function App() {
     setDataLoading(true)
     setDataLoadError('')
     try {
-      const [w, wl, o, t, i, wp] = await Promise.all([
+      const [w, wl, o, t, i] = await Promise.all([
         supabase.from('wardrobe_items').select('*').order('created_at', { ascending: false }),
         supabase.from('wishlist_items').select('*').order('created_at', { ascending: false }),
         supabase.from('saved_outfits').select('*').order('created_at', { ascending: false }),
         supabase.from('trips').select('*').order('created_at', { ascending: false }),
         supabase.from('inspiration_images').select('*').order('created_at', { ascending: false }),
-        supabase.from('wishlist_prices').select('*').order('recorded_at', { ascending: false }),
       ])
 
       // Supabase returns errors in the response object, not as thrown exceptions
-      const firstError = [w, wl, o, t, i, wp].find(r => r.error)?.error
+      const firstError = [w, wl, o, t, i].find(r => r.error)?.error
       if (firstError) {
         setDataLoadError(`Could not load your data: ${firstError.message}`)
         console.error('Supabase load error:', firstError)
@@ -145,7 +142,6 @@ export default function App() {
       setSavedOutfits(o.data || [])
       setTrips(t.data || [])
       setInspirationImages(i.data || [])
-      setWishlistPrices(wp.data || [])
     } catch (err) {
       setDataLoadError(`Could not load your data: ${err.message}`)
       console.error('Failed to load data:', err)
@@ -250,25 +246,6 @@ export default function App() {
     await supabase.from('wishlist_items').delete().eq('id', id)
     setWardrobeItems(prev => [data, ...prev])
     setWishlistItems(prev => prev.filter(i => i.id !== id))
-    showSaved()
-  }
-
-  // --- Wishlist Prices ---
-  async function addPriceEntry(itemId, { store, price, url }) {
-    const { data, error } = await supabase
-      .from('wishlist_prices')
-      .insert([{ item_id: itemId, store, price, url: url || null, user_id: user.id }])
-      .select().single()
-    if (error) throw new Error(error.message)
-    setWishlistPrices(prev => [data, ...prev])
-    showSaved()
-    return data
-  }
-
-  async function deletePriceEntry(id) {
-    const { error } = await supabase.from('wishlist_prices').delete().eq('id', id)
-    if (error) throw new Error(error.message)
-    setWishlistPrices(prev => prev.filter(p => p.id !== id))
     showSaved()
   }
 
@@ -520,9 +497,6 @@ export default function App() {
             onEditItem={editWishlistItem}
             onDeleteItem={deleteWishlistItem}
             onMoveToWardrobe={moveToWardrobe}
-            wishlistPrices={wishlistPrices}
-            onAddPrice={addPriceEntry}
-            onDeletePrice={deletePriceEntry}
           />
         )}
         {activeTab === 'packing' && (

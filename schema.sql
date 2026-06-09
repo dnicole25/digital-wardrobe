@@ -76,20 +76,6 @@ create policy "Users own saved outfits" on saved_outfits for all using (auth.uid
 create policy "Users own trips" on trips for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users own inspiration images" on inspiration_images for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create table wishlist_prices (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users,
-  item_id uuid references wishlist_items(id) on delete cascade,
-  store text not null,
-  price numeric(10,2) not null,
-  url text,
-  recorded_at timestamptz default now()
-);
-
-alter table wishlist_prices enable row level security;
-create policy "Users own wishlist prices" on wishlist_prices for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create index wishlist_prices_item_idx on wishlist_prices(item_id, recorded_at desc);
-
 -- Storage bucket (run separately or via Supabase dashboard)
 -- Create a public bucket called 'wardrobe-images'
 -- Add storage policy: allow authenticated users to upload to their own folder

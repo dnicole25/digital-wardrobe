@@ -11,146 +11,6 @@ const OCCASIONS = ['casual', 'work', 'date', 'wedding', 'formal event', 'party',
 const SEASONS = ['all', 'spring', 'summer', 'fall', 'winter']
 const SLOTS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
-// Detect price drops: compare latest price per store vs previous entry for that store
-function detectPriceDrops(itemId, prices) {
-  const itemPrices = prices
-    .filter(p => p.item_id === itemId)
-    .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at))
-
-  const drops = []
-  const seenStores = new Map()
-
-  for (const entry of itemPrices) {
-    const store = entry.store.toLowerCase()
-    if (!seenStores.has(store)) {
-      seenStores.set(store, entry)
-    } else {
-      const latest = seenStores.get(store)
-      if (latest.price < entry.price) {
-        drops.push({ store: entry.store, from: entry.price, to: latest.price })
-      }
-      // keep oldest seen to compare against any future newest
-    }
-  }
-  return drops
-}
-
-function PriceTracker({ item, prices, onAddPrice, onDeletePrice }) {
-  const [store, setStore] = useState('')
-  const [price, setPrice] = useState('')
-  const [url, setUrl] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  const itemPrices = prices
-    .filter(p => p.item_id === item.id)
-    .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at))
-
-  async function handleAdd(e) {
-    e.preventDefault()
-    if (!store.trim() || !price) return
-    setSaving(true)
-    setError('')
-    try {
-      await onAddPrice(item.id, { store: store.trim(), price: parseFloat(price), url: url.trim() })
-      setStore('')
-      setPrice('')
-      setUrl('')
-    } catch (err) {
-      setError(err.message || 'Failed to save price')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Group by store, newest first per store
-  const byStore = {}
-  for (const p of itemPrices) {
-    const key = p.store.toLowerCase()
-    if (!byStore[key]) byStore[key] = []
-    byStore[key].push(p)
-  }
-
-  return (
-    <div className="price-tracker">
-      <form className="price-add-form" onSubmit={handleAdd}>
-        <input
-          className="input-field"
-          placeholder="Store name"
-          value={store}
-          onChange={e => setStore(e.target.value)}
-          required
-          style={{ flex: 1 }}
-        />
-        <input
-          className="input-field"
-          placeholder="Price"
-          type="number"
-          min="0"
-          step="0.01"
-          value={price}
-          onChange={e => setPrice(e.target.value)}
-          required
-          style={{ width: 90 }}
-        />
-        <input
-          className="input-field"
-          placeholder="URL (optional)"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          style={{ flex: 2 }}
-        />
-        <button className="btn-outline" type="submit" disabled={saving} style={{ whiteSpace: 'nowrap', fontSize: 11 }}>
-          {saving ? <span className="spin">◌</span> : '+ Track'}
-        </button>
-      </form>
-      {error && <div style={{ fontSize: 11, color: '#c0392b', padding: '4px 0' }}>{error}</div>}
-
-      {itemPrices.length > 0 && (
-        <div className="price-list">
-          {Object.values(byStore).map(entries => {
-            const latest = entries[0]
-            const prev = entries[1]
-            const dropped = prev && latest.price < prev.price
-            const rose = prev && latest.price > prev.price
-            return entries.map((entry, i) => (
-              <div key={entry.id} className="price-row">
-                <div className="price-row-left">
-                  <span className="price-store">{entry.store}</span>
-                  {i === 0 && dropped && (
-                    <span className="price-drop-badge">↓ dropped</span>
-                  )}
-                  {i === 0 && rose && (
-                    <span className="price-rose-badge">↑ rose</span>
-                  )}
-                </div>
-                <div className="price-row-right">
-                  <span className="price-amount" style={{ color: i === 0 && dropped ? '#2e7d32' : undefined }}>
-                    ${parseFloat(entry.price).toFixed(2)}
-                  </span>
-                  <span className="price-date">
-                    {new Date(entry.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                  {entry.url && (
-                    <a href={entry.url} target="_blank" rel="noopener noreferrer" className="price-link">→</a>
-                  )}
-                  <button
-                    className="price-delete"
-                    onClick={() => onDeletePrice(entry.id)}
-                    title="Remove"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            ))
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function WishlistPage({
   items,
   wardrobeItems,
@@ -160,9 +20,6 @@ export default function WishlistPage({
   onEditItem,
   onDeleteItem,
   onMoveToWardrobe,
-  wishlistPrices = [],
-  onAddPrice,
-  onDeletePrice,
 }) {
   const [subTab, setSubTab] = useState('items')
 
@@ -174,7 +31,6 @@ export default function WishlistPage({
   const [filterSeason, setFilterSeason] = useState('all')
   const [similarLoading, setSimilarLoading] = useState({})
   const [similarResults, setSimilarResults] = useState({})
-  const [priceTrackerOpen, setPriceTrackerOpen] = useState(new Set())
 
   // Generate tab
   const [occasion, setOccasion] = useState('casual')
@@ -200,18 +56,6 @@ export default function WishlistPage({
     if (filterSeason !== 'all' && !item.seasons?.includes(filterSeason)) return false
     return true
   })
-
-  // Price drop alerts: items with a detected drop in any store
-  const priceDropItems = items.filter(item => detectPriceDrops(item.id, wishlistPrices).length > 0)
-
-  function togglePriceTracker(itemId) {
-    setPriceTrackerOpen(prev => {
-      const next = new Set(prev)
-      if (next.has(itemId)) next.delete(itemId)
-      else next.add(itemId)
-      return next
-    })
-  }
 
   async function handleFindSimilar(item) {
     if (similarResults[item.id]) {
@@ -294,25 +138,6 @@ export default function WishlistPage({
       {/* ── ITEMS TAB ── */}
       {subTab === 'items' && (
         <>
-          {/* Price drop alert banner */}
-          {priceDropItems.length > 0 && (
-            <div className="price-alert-banner">
-              <span className="price-alert-icon">↓</span>
-              <span className="price-alert-text">
-                Price drop detected on:{' '}
-                {priceDropItems.map((item, i) => (
-                  <span key={item.id}>
-                    {i > 0 && ', '}
-                    <strong>{item.name}</strong>
-                    {detectPriceDrops(item.id, wishlistPrices).map(d => (
-                      <span key={d.store}> ({d.store}: ${d.from.toFixed(2)} → ${d.to.toFixed(2)})</span>
-                    ))}
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-
           <div className="page-header">
             <h2 className="section-title">Wishlist</h2>
             <button className="btn-primary" onClick={() => setShowAddModal(true)}>+ Add Item</button>
@@ -349,18 +174,7 @@ export default function WishlistPage({
                     showWishlistActions
                     onMoveToWardrobe={onMoveToWardrobe}
                     onFindSimilar={handleFindSimilar}
-                    onTrackPrice={() => togglePriceTracker(item.id)}
-                    hasPriceEntries={wishlistPrices.some(p => p.item_id === item.id)}
-                    hasPriceDrop={detectPriceDrops(item.id, wishlistPrices).length > 0}
                   />
-                  {priceTrackerOpen.has(item.id) && (
-                    <PriceTracker
-                      item={item}
-                      prices={wishlistPrices}
-                      onAddPrice={onAddPrice}
-                      onDeletePrice={onDeletePrice}
-                    />
-                  )}
                   {similarLoading[item.id] && (
                     <div style={{ padding: '12px', textAlign: 'center' }}>
                       <div className="loading-spinner" />
