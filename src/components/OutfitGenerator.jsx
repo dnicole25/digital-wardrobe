@@ -79,10 +79,17 @@ export default function OutfitGenerator({
       }))
       const anchoredList = anchoredWardrobeIds
 
-      // Items worn for this occasion in the log must not be reused
+      // Shoes, jewelry, bag, belt, and accessory slots may repeat across days
+      const REPEATABLE_SLOTS = new Set(['shoes', 'jewelry', 'bag', 'belt', 'accessory'])
+
+      // Items worn for this occasion in the log must not be reused (excluding repeatable categories)
       const logExcludeIds = outfitLog
         .filter(entry => entry.occasion === occasion)
-        .flatMap(entry => Object.values(entry.outfit_slots || {}).filter(v => v && typeof v === 'string'))
+        .flatMap(entry =>
+          Object.entries(entry.outfit_slots || {})
+            .filter(([slot, id]) => id && typeof id === 'string' && !REPEATABLE_SLOTS.has(slot))
+            .map(([, id]) => id)
+        )
 
       // In-session regeneration history (resets on fresh generate)
       let sessionExcludeIds
