@@ -105,7 +105,7 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
     : date ? `Date: ${date}. Choose seasonally appropriate items based on the time of year.` : ''
 
   const occasionNote = occasion
-    ? `Occasion: ${occasion}. STRONGLY prefer items whose occasions array includes "${occasion}". An item tagged for multiple occasions (e.g. ["work","casual"]) qualifies as long as "${occasion}" is one of them. Only exclude an item if its occasions array is non-empty AND does not contain "${occasion}" at all — items with an empty occasions array are neutral and may be used as a fallback.`
+    ? `Occasion: ${occasion}. ONLY select items whose occasions array includes "${occasion}" OR whose occasions array is empty (occasion-neutral). An item tagged for multiple occasions qualifies as long as "${occasion}" is one of them. MUST NOT select any item whose occasions array is non-empty and does not contain "${occasion}".`
     : ''
 
   const timeNote = timeOfDay === 'night'
@@ -131,26 +131,25 @@ ${anchoredList}
 ${excludeNote}
 ${varietyNote}
 
-Instructions:
-1. Select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the temperature'} and ${weather?.condition || 'the conditions'}
-2. ONLY select items whose occasions array includes "${occasion || 'the selected occasion'}", OR items with an empty occasions array (neutral pieces). An item tagged for multiple occasions qualifies as long as the selected occasion is one of them.
-3. ONLY select items whose seasons array includes "${season || 'the current season'}", OR items with an empty seasons array (season-neutral). An item tagged for multiple seasons qualifies as long as the current season is one of them. EXCLUDE any item whose seasons array is non-empty and does not include the current season.
-4. If rainy or snowy conditions, include outerwear and practical footwear
-5. If sunny and warm, choose lighter fabrics and layers
-6. Reflect the style aesthetic from any inspiration boards or images provided
-7. STYLE COHERENCE — apply every rule below before finalising:
-   a. COLOR PALETTE: Build around 2–3 colors max. Use the color field of each item. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) pair with almost anything. Do not combine items whose colors clash or compete with each other.
-   b. PATTERN DISCIPLINE: Infer patterns from the item name (e.g. "striped", "floral", "plaid", "printed", "checked"). NEVER pair two bold patterns of the same type — no two striped pieces, no two florals, no two plaids. If one visible piece is patterned, every other visible piece must be a solid color or a completely different, subtle pattern. Always pick up a color from the pattern for any coordinating solids.
-   c. AESTHETIC CONSISTENCY: All pieces must share a similar formality and style. Do not mix very casual items with very formal ones (e.g. a graphic tee with a pencil skirt, or athletic sneakers with a cocktail dress).
-   d. ACCESSORIES MUST RELATE: Bag, belt, and jewelry must connect to the outfit palette — matching a key color, a neutral tone, or a metal that ties the look together. Do not select an accessory whose color is unrelated to anything else in the outfit.
-   e. FINAL CHECK: Before returning, review whether every selected item works with every other item on color, pattern, and style. If any item conflicts, replace it with one that fits.
+MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
+
+RULE 1 — WEATHER: MUST select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the current temperature'} and ${weather?.condition || 'the conditions'}. If rainy or snowy, MUST include outerwear and practical footwear. If sunny and warm, MUST use lighter fabrics.
+RULE 2 — OCCASION: MUST NOT include any item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}". ONLY items whose occasions array includes the occasion, or whose occasions array is empty, are permitted.
+RULE 3 — SEASON: MUST NOT include any item whose seasons array is non-empty and does not contain "${season || 'the current season'}". ONLY items whose seasons array includes the season, or whose seasons array is empty, are permitted.
+RULE 4 — FORBIDDEN IDs: MUST NOT reuse any forbidden ID listed above (except anchored items).
+RULE 5 — INSPIRATION: If inspiration images are provided above, MUST reflect their aesthetic, colour palette, and silhouette in every selection.
+RULE 6 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
+RULE 7 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
+RULE 8 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
+RULE 9 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
+RULE 10 — FINAL CHECK: Before returning, verify every selected item against every other item. If any item violates Rules 6–9, replace it. Do not return an outfit that fails any rule.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
-Rules:
-- Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null. If top or bottom is set, dress must be null.
-- Cardigan layers over a top or dress: if cardigan is set with a top, the top must be a tank or sleeveless style. If cardigan is set with a dress, top and bottom must be null.
-- Only populate slots that genuinely contribute to the outfit. Set slots to null when that item type is not needed.
-- Only use IDs from the provided list.`
+Structure rules (also mandatory):
+- MUST use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null. If top or bottom is set, dress must be null.
+- Cardigan: if paired with a top, the top MUST be a tank or sleeveless style. If paired with a dress, top and bottom MUST be null.
+- MUST only populate slots that genuinely contribute to the outfit. Set slots to null when not needed.
+- MUST only use IDs from the provided list.`
 
   const content = imageInputs.length
     ? [...imageInputs, { type: 'text', text: promptText }]
@@ -323,19 +322,20 @@ Wardrobe: ${JSON.stringify(items)}
 ${usedStr}
 ${varietyNote}
 
-STYLE COHERENCE — apply every rule below before finalising:
-a. COLOR PALETTE: Build around 2–3 colors max. Use item color fields. Neutrals (black, white, ivory, beige, grey, navy, camel) pair with almost anything. Do not combine items whose colors clash.
-b. PATTERN DISCIPLINE: Infer patterns from item names (striped, floral, plaid, printed, checked). NEVER pair two bold patterns of the same type. If one visible piece is patterned, all others must be solid or a completely different subtle pattern. Pick up a color from the pattern for coordinating solids.
-c. AESTHETIC CONSISTENCY: All pieces must share a similar formality and style. Do not mix very casual and very formal items.
-d. ACCESSORIES MUST RELATE: Bag, belt, and jewelry colors must connect to the outfit palette.
-e. FINAL CHECK: Review every selected item against every other. Replace any item that conflicts in color, pattern, or style.
+MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
+
+RULE 1 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel) may pair with any color.
+RULE 2 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be solid or a clearly different subtle pattern. MUST pick up a color from the pattern for coordinating solids.
+RULE 3 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual and very formal items.
+RULE 4 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
+RULE 5 — FINAL CHECK: Before returning, verify every item against every other. Replace any item that violates Rules 1–4.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
-Rules:
-- Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
-- Cardigan layers over a top or dress: if cardigan is set with a top, the top must be a tank or sleeveless style. If cardigan is set with a dress, top and bottom must be null.
-- Only populate slots that genuinely contribute to the outfit. Set unused slots to null.
-- Only use IDs from the provided items list.`
+Structure rules (also mandatory):
+- MUST use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
+- Cardigan: if paired with a top, the top MUST be a tank or sleeveless style. If paired with a dress, top and bottom MUST be null.
+- MUST only populate slots that genuinely contribute to the outfit. Set unused slots to null.
+- MUST only use IDs from the provided items list.`
   }])
   return parseJSON(text)
 }
@@ -344,7 +344,7 @@ async function generateWishlistOutfit({ anchoredItems, wardrobeItems, occasion, 
   const timeLabel = timeOfDay === 'night' ? 'evening/night' : 'daytime'
 
   const occasionNote = occasion
-    ? `Occasion: ${occasion}. Prefer wardrobe items whose occasions array includes "${occasion}". An item qualifies if "${occasion}" is anywhere in its occasions array. Items with an empty occasions array are neutral and may be used.`
+    ? `Occasion: ${occasion}. ONLY select wardrobe items whose occasions array includes "${occasion}" OR whose occasions array is empty (occasion-neutral). MUST NOT use any wardrobe item whose occasions array is non-empty and does not contain "${occasion}".`
     : ''
 
   const excludeNote = excludeIds?.length
@@ -375,20 +375,23 @@ ${JSON.stringify(wardrobeItems)}
 ${excludeNote}
 ${varietyNote}
 
-STYLE COHERENCE — apply every rule below before finalising:
-a. COLOR PALETTE: Build around 2–3 colors max. Use the wishlist piece(s) as the color anchor and select wardrobe items whose colors coordinate with them. Do not combine items whose colors clash or compete.
-b. PATTERN DISCIPLINE: Infer patterns from item names (e.g. "striped", "floral", "plaid", "printed"). NEVER pair two bold patterns of the same type. If one visible piece is patterned, every other visible piece must be a solid or a completely different, subtle pattern. Pick up a color from the pattern for coordinating solids.
-c. AESTHETIC CONSISTENCY: All pieces must share a similar formality and style. Do not mix very casual items with very formal ones.
-d. ACCESSORIES MUST RELATE: Bag, belt, and jewelry must connect to the outfit palette — matching a key color, a neutral, or a metal that ties the look together.
-e. FINAL CHECK: Review every selected item against every other. If any item conflicts in color, pattern, or style, replace it.
+MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
+
+RULE 1 — OCCASION: MUST NOT include any wardrobe item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}".
+RULE 2 — FORBIDDEN IDs: MUST NOT reuse any forbidden wardrobe ID listed above.
+RULE 3 — COLOR PALETTE: MUST build around 2–3 colors using the wishlist piece(s) as the color anchor. MUST NOT combine items whose colors clash or compete.
+RULE 4 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type. If any visible piece is patterned, every other visible piece MUST be solid or a clearly different subtle pattern. MUST pick up a color from the pattern for coordinating solids.
+RULE 5 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual and very formal items.
+RULE 6 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
+RULE 7 — FINAL CHECK: Before returning, verify every item against every other. Replace any item that violates Rules 3–6.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
-Rules:
-- The fixed wishlist slots above are non-negotiable — use exactly those IDs in exactly those slots
-- Every other populated slot must contain a wardrobe ID from: [${wardrobeIds.join(', ')}]
-- Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
-- Cardigan layers over a tank/sleeveless top or over a dress. If cardigan is set with a dress, top and bottom must be null.
-- Only populate slots that genuinely contribute to the outfit. Set unused slots to null.`
+Structure rules (also mandatory):
+- The fixed wishlist slots above are non-negotiable — MUST use exactly those IDs in exactly those slots
+- Every other populated slot MUST contain a wardrobe ID from: [${wardrobeIds.join(', ')}]
+- MUST use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
+- Cardigan: if paired with a top, the top MUST be a tank or sleeveless style. If paired with a dress, top and bottom MUST be null.
+- MUST only populate slots that genuinely contribute to the outfit. Set unused slots to null.`
   }])
   return parseJSON(text)
 }
