@@ -99,7 +99,7 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
     : 'Weather: unknown'
 
   const seasonNote = season
-    ? `Season: ${season}. STRONGLY prefer items tagged for ${season} in their seasons field. Items tagged for other seasons are less appropriate unless nothing else is available.`
+    ? `Season: ${season}. ONLY select items whose seasons array includes "${season}" OR whose seasons array is empty (season-neutral pieces). Do NOT use any item whose seasons array is non-empty and does not contain "${season}" — for example, a cardigan tagged only for ["fall","winter"] must not appear in a summer outfit.`
     : date ? `Date: ${date}. Choose seasonally appropriate items based on the time of year.` : ''
 
   const occasionNote = occasion
@@ -131,7 +131,7 @@ ${excludeNote}
 Instructions:
 1. Select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the temperature'} and ${weather?.condition || 'the conditions'}
 2. ONLY select items whose occasions array includes "${occasion || 'the selected occasion'}", OR items with an empty occasions array (neutral pieces). An item tagged for multiple occasions qualifies as long as the selected occasion is one of them.
-3. Prefer items whose seasons field includes "${season || 'the current season'}"
+3. ONLY select items whose seasons array includes "${season || 'the current season'}", OR items with an empty seasons array (season-neutral). An item tagged for multiple seasons qualifies as long as the current season is one of them. EXCLUDE any item whose seasons array is non-empty and does not include the current season.
 4. If rainy or snowy conditions, include outerwear and practical footwear
 5. If sunny and warm, choose lighter fabrics and layers
 6. Reflect the style aesthetic from any inspiration boards or images provided
