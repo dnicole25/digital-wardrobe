@@ -4,6 +4,8 @@ import OutfitSlot from './OutfitSlot'
 
 const OCCASIONS = ['casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
 const SLOTS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+const REPEATABLE_SLOTS = new Set(['shoes', 'jewelry', 'bag', 'belt', 'accessory'])
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function today() {
   return new Date().toISOString().split('T')[0]
@@ -79,15 +81,12 @@ export default function OutfitGenerator({
       }))
       const anchoredList = anchoredWardrobeIds
 
-      // Shoes, jewelry, bag, belt, and accessory slots may repeat across days
-      const REPEATABLE_SLOTS = new Set(['shoes', 'jewelry', 'bag', 'belt', 'accessory'])
-
       // Items worn for this occasion in the log must not be reused (excluding repeatable categories)
       const logExcludeIds = outfitLog
         .filter(entry => entry.occasion === occasion)
         .flatMap(entry =>
           Object.entries(entry.outfit_slots || {})
-            .filter(([slot, id]) => id && typeof id === 'string' && !REPEATABLE_SLOTS.has(slot))
+            .filter(([slot, id]) => UUID_RE.test(id) && !REPEATABLE_SLOTS.has(slot))
             .map(([, id]) => id)
         )
 
@@ -166,7 +165,12 @@ export default function OutfitGenerator({
     try {
       const d = new Date(date + 'T12:00:00')
       const weekday = d.toLocaleDateString('en-US', { weekday: 'long' })
-      await onLogOutfit({ date, weekday, occasion, outfit_slots: outfit, notes: outfit.notes || '' })
+      // Strip notes and null slots — store only actual item IDs so the exclusion logic stays clean
+      const { notes: _n, ...rawSlots } = outfit
+      const outfit_slots = Object.fromEntries(
+        Object.entries(rawSlots).filter(([, v]) => UUID_RE.test(v))
+      )
+      await onLogOutfit({ date, weekday, occasion, outfit_slots, notes: outfit.notes || '' })
       setLogged(true)
     } catch (err) {
       console.error('Log failed:', err)

@@ -89,7 +89,7 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
     : 'No anchored items.'
 
   const excludeNote = excludeIds?.length
-    ? `FORBIDDEN — these IDs were already shown and MUST NOT appear in this outfit (except anchored items). This is a hard rule — using any forbidden ID is an error: ${excludeIds.join(', ')}`
+    ? `PREVIOUSLY WORN / ALREADY SHOWN — COMPLETELY OFF-LIMITS: The following item IDs MUST NOT appear anywhere in this outfit. This ban overrides weather, season, occasion, and all other rules. Using any of these IDs is a critical error that invalidates the entire outfit:\n${excludeIds.join(', ')}`
     : ''
 
   const varietyNote = `VARIETY: This wardrobe contains many items. Do not habitually default to the same pieces every time. For each slot, consider all qualifying items and deliberately choose from across the full range — including less-obvious picks, different colors, and combinations you have not suggested before. Avoid safe defaults; aim for a fresh, well-considered outfit.`
@@ -124,11 +124,11 @@ ${occasionNote}
 ${seasonNote}
 ${timeNote}
 ${inspirationText}
+${excludeNote}
 
 Available wardrobe items:
 ${JSON.stringify(items)}
 ${anchoredList}
-${excludeNote}
 ${varietyNote}
 
 MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
@@ -136,7 +136,7 @@ MANDATORY RULES — every rule below is non-negotiable. An outfit that violates 
 RULE 1 — WEATHER: MUST select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the current temperature'} and ${weather?.condition || 'the conditions'}. If rainy or snowy, MUST include outerwear and practical footwear. If sunny and warm, MUST use lighter fabrics.
 RULE 2 — OCCASION: MUST NOT include any item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}". ONLY items whose occasions array includes the occasion, or whose occasions array is empty, are permitted.
 RULE 3 — SEASON: MUST NOT include any item whose seasons array is non-empty and does not contain "${season || 'the current season'}". ONLY items whose seasons array includes the season, or whose seasons array is empty, are permitted.
-RULE 4 — FORBIDDEN IDs: MUST NOT reuse any forbidden ID listed above (except anchored items).
+RULE 4 — OFF-LIMITS ITEMS: The "PREVIOUSLY WORN / ALREADY SHOWN" IDs listed above MUST NOT appear in this outfit under any circumstances. Not for weather. Not for season. Not for any reason. If no qualifying replacement exists for a slot, leave that slot null rather than use an off-limits ID.
 RULE 5 — INSPIRATION: If inspiration images are provided above, MUST reflect their aesthetic, colour palette, and silhouette in every selection.
 RULE 6 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
 RULE 7 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
