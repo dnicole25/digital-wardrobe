@@ -16,6 +16,8 @@ export default function OutfitGenerator({
   onAnchorToggle,
   preAnchoredItem,
   inspirationItems = [],
+  outfitLog = [],
+  onLogOutfit,
 }) {
   const [location, setLocation] = useState('')
   const [weather, setWeather] = useState(null)
@@ -27,6 +29,8 @@ export default function OutfitGenerator({
   const [outfit, setOutfit] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [logging, setLogging] = useState(false)
+  const [logged, setLogged] = useState(false)
 
   const itemById = useCallback(id => wardrobeItems.find(i => i.id === id) || null, [wardrobeItems])
 
@@ -35,6 +39,9 @@ export default function OutfitGenerator({
 
   const fetchedForRef = useRef(null)
   const excludedHistoryRef = useRef([])
+
+  // Reset "logged" state when occasion or date changes
+  useEffect(() => { setLogged(false) }, [occasion, date])
 
   async function handleGetWeather(loc, dt, tod) {
     const l = (loc ?? location).trim()
@@ -70,18 +77,23 @@ export default function OutfitGenerator({
       }))
       const anchoredList = anchoredWardrobeIds
 
-      // Accumulate all previously shown non-anchored item IDs so each regeneration
-      // explores genuinely new territory instead of cycling between two options.
-      // Reset the history when this is a brand-new generate (no outfit yet).
-      let excludeIds
+      // Items worn for this occasion in the log must not be reused
+      const logExcludeIds = outfitLog
+        .filter(entry => entry.occasion === occasion)
+        .flatMap(entry => Object.values(entry.outfit_slots || {}).filter(v => v && typeof v === 'string'))
+
+      // In-session regeneration history (resets on fresh generate)
+      let sessionExcludeIds
       if (!outfit) {
         excludedHistoryRef.current = []
-        excludeIds = []
+        sessionExcludeIds = []
       } else {
         const currentIds = Object.values(outfit).filter(id => id && typeof id === 'string' && !anchored.has(id))
         excludedHistoryRef.current = [...new Set([...excludedHistoryRef.current, ...currentIds])]
-        excludeIds = excludedHistoryRef.current
+        sessionExcludeIds = excludedHistoryRef.current
       }
+
+      const excludeIds = [...new Set([...sessionExcludeIds, ...logExcludeIds])]
 
       const result = await generateOutfit({
         items: simplified,
@@ -95,7 +107,6 @@ export default function OutfitGenerator({
         inspiration: inspirationItems,
       })
 
-      // Preserve anchored slots, but respect dress/top+bottom exclusivity in the new result
       setOutfit(prev => {
         if (!prev) return result
         const next = { ...result }
@@ -139,8 +150,39 @@ export default function OutfitGenerator({
     }
   }
 
+  async function handleLog() {
+    if (!outfit || !onLogOutfit) return
+    setLogging(true)
+    try {
+      const d = new Date(date + 'T12:00:00')
+      const weekday = d.toLocaleDateString('en-US', { weekday: 'long' })
+      await onLogOutfit({ date, weekday, occasion, outfit_slots: outfit, notes: outfit.notes || '' })
+      setLogged(true)
+    } catch (err) {
+      console.error('Log failed:', err)
+    } finally {
+      setLogging(false)
+    }
+  }
+
+  // Occasions that have entries in the log — shown as a reminder
+  const loggedOccasions = [...new Set(outfitLog.map(e => e.occasion).filter(Boolean))]
+
   return (
     <div className="outfit-generator">
+      {/* Log reminder banner */}
+      {loggedOccasions.length > 0 && (
+        <div className="log-reminder">
+          <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--taupe)' }}>
+            📅 Items logged for:
+          </span>
+          {loggedOccasions.map(o => (
+            <span key={o} className={`tag${o === occasion ? ' active' : ''}`} style={{ cursor: 'default' }}>{o}</span>
+          ))}
+          <span style={{ fontSize: 10, color: 'var(--taupe)' }}>— those items won't repeat</span>
+        </div>
+      )}
+
       {/* Location + Weather */}
       <div className="outfit-inputs">
         <div>
@@ -253,7 +295,7 @@ export default function OutfitGenerator({
           : '✦ Generate Outfit'}
       </button>
 
-      {/* Outfit grid — only render slots Claude actually filled */}
+      {/* Outfit grid */}
       {outfit && (() => {
         const hasDress = outfit.dress != null
         const displaySlots = SLOTS.filter(slot => {
@@ -300,6 +342,20 @@ export default function OutfitGenerator({
             >
               ↻ Regenerate
             </button>
+            {onLogOutfit && (
+              <button
+                className={`btn-outline${logged ? ' log-success' : ''}`}
+                onClick={handleLog}
+                disabled={logging || logged}
+                style={{ flex: 1 }}
+              >
+                {logging
+                  ? <span className="spin">◌</span>
+                  : logged
+                    ? '✓ Logged'
+                    : '📅 Log Outfit'}
+              </button>
+            )}
           </div>
         </>
         )

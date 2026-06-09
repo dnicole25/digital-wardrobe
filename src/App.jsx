@@ -76,6 +76,7 @@ export default function App() {
   const [savedOutfits, setSavedOutfits] = useState([])
   const [trips, setTrips] = useState([])
   const [inspirationImages, setInspirationImages] = useState([])
+  const [outfitLog, setOutfitLog] = useState([])
 
   const [anchored, setAnchored] = useState(new Set())
 
@@ -105,6 +106,7 @@ export default function App() {
       setSavedOutfits([])
       setTrips([])
       setInspirationImages([])
+      setOutfitLog([])
     }
   }, [user])
 
@@ -121,12 +123,13 @@ export default function App() {
     setDataLoading(true)
     setDataLoadError('')
     try {
-      const [w, wl, o, t, i] = await Promise.all([
+      const [w, wl, o, t, i, ol] = await Promise.all([
         supabase.from('wardrobe_items').select('*').order('created_at', { ascending: false }),
         supabase.from('wishlist_items').select('*').order('created_at', { ascending: false }),
         supabase.from('saved_outfits').select('*').order('created_at', { ascending: false }),
         supabase.from('trips').select('*').order('created_at', { ascending: false }),
         supabase.from('inspiration_images').select('*').order('created_at', { ascending: false }),
+        supabase.from('outfit_log').select('*').order('date', { ascending: false }),
       ])
 
       // Supabase returns errors in the response object, not as thrown exceptions
@@ -142,6 +145,8 @@ export default function App() {
       setSavedOutfits(o.data || [])
       setTrips(t.data || [])
       setInspirationImages(i.data || [])
+      // outfit_log silently falls back to [] if the table doesn't exist yet
+      setOutfitLog(ol.data || [])
     } catch (err) {
       setDataLoadError(`Could not load your data: ${err.message}`)
       console.error('Failed to load data:', err)
@@ -322,6 +327,32 @@ export default function App() {
     showSaved()
   }
 
+  // --- Outfit Log ---
+  async function addOutfitLog({ date, weekday, occasion, outfit_slots, notes }) {
+    const { data, error } = await supabase
+      .from('outfit_log')
+      .insert([{ date, weekday, occasion, outfit_slots, notes: notes || null, user_id: user.id }])
+      .select().single()
+    if (error) throw new Error(error.message)
+    setOutfitLog(prev => [data, ...prev].sort((a, b) => b.date.localeCompare(a.date)))
+    showSaved()
+    return data
+  }
+
+  async function deleteOutfitLogEntry(id) {
+    const { error } = await supabase.from('outfit_log').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setOutfitLog(prev => prev.filter(e => e.id !== id))
+    showSaved()
+  }
+
+  async function clearOutfitLog() {
+    const { error } = await supabase.from('outfit_log').delete().eq('user_id', user.id)
+    if (error) throw new Error(error.message)
+    setOutfitLog([])
+    showSaved()
+  }
+
   // --- Anchor ---
   const handleAnchorToggle = useCallback(id => {
     setAnchored(prev => {
@@ -485,6 +516,10 @@ export default function App() {
             onSaveOutfit={saveOutfit}
             onDeleteOutfit={deleteOutfit}
             inspirationItems={inspirationImages}
+            outfitLog={outfitLog}
+            onLogOutfit={addOutfitLog}
+            onDeleteLogEntry={deleteOutfitLogEntry}
+            onClearLog={clearOutfitLog}
           />
         )}
         {activeTab === 'wishlist' && (

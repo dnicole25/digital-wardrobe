@@ -7,12 +7,12 @@ import OutfitGenerator from '../components/OutfitGenerator'
 const CATEGORIES = ['all', 'top', 'cardigan', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
 const OCCASIONS = ['all', 'casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
 const SEASONS = ['all', 'spring', 'summer', 'fall', 'winter']
+const ALL_SLOT_KEYS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
 function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
   const slots = outfit.outfit_slots || {}
-  const allSlotKeys = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
   const hasDress = !!slots.dress
-  const filledSlots = allSlotKeys.filter(slot => {
+  const filledSlots = ALL_SLOT_KEYS.filter(slot => {
     if ((slot === 'top' || slot === 'bottom') && hasDress) return false
     return !!slots[slot]
   })
@@ -67,6 +67,106 @@ function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
   )
 }
 
+function WeeklyLogTab({ outfitLog, wardrobeItems, onDeleteEntry, onClearAll }) {
+  const [clearing, setClearing] = useState(false)
+
+  async function handleClearAll() {
+    if (!window.confirm('Clear all logged outfits? Those items will become available again for generation.')) return
+    setClearing(true)
+    try { await onClearAll() } catch (err) { console.error(err) } finally { setClearing(false) }
+  }
+
+  if (outfitLog.length === 0) {
+    return (
+      <div className="empty-state">
+        <h3>No outfits logged yet</h3>
+        <p>Generate an outfit and tap "Log Outfit" to record what you wore each day.</p>
+      </div>
+    )
+  }
+
+  // Group by date, most recent first
+  const grouped = {}
+  for (const entry of outfitLog) {
+    if (!grouped[entry.date]) grouped[entry.date] = []
+    grouped[entry.date].push(entry)
+  }
+  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 className="section-title">Weekly Log</h2>
+        <button
+          className="btn-outline"
+          onClick={handleClearAll}
+          disabled={clearing}
+          style={{ fontSize: 11, color: '#c0392b', borderColor: 'rgba(192,57,43,0.3)' }}
+        >
+          {clearing ? <span className="spin">◌</span> : 'Clear Log'}
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--taupe)', marginBottom: 24, marginTop: -16 }}>
+        Items logged here won't be suggested again for the same occasion. Clear the log to reset.
+      </p>
+
+      <div className="log-entries">
+        {sortedDates.map(date => {
+          const entries = grouped[date]
+          const weekday = entries[0].weekday
+          const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
+          return (
+            <div key={date} className="log-day">
+              <div className="log-day-header">
+                <span className="log-day-name">{weekday}</span>
+                <span className="log-day-date">{displayDate}</span>
+              </div>
+              {entries.map(entry => {
+                const slots = entry.outfit_slots || {}
+                const hasDress = !!slots.dress
+                const filledSlots = ALL_SLOT_KEYS.filter(slot => {
+                  if ((slot === 'top' || slot === 'bottom') && hasDress) return false
+                  return !!slots[slot]
+                })
+                return (
+                  <div key={entry.id} className="log-entry">
+                    <div className="log-entry-header">
+                      {entry.occasion && <span className="tag gold">{entry.occasion}</span>}
+                      <button
+                        className="btn-icon"
+                        style={{ color: 'var(--sand)', fontSize: 13 }}
+                        onClick={() => onDeleteEntry(entry.id)}
+                        title="Remove this entry"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="log-mini-grid">
+                      {filledSlots.map(slot => {
+                        const item = wardrobeItems.find(i => i.id === slots[slot])
+                        return (
+                          <div key={slot} className="log-mini-slot" title={`${slot}: ${item?.name || 'unknown'}`}>
+                            {item?.image_url ? (
+                              <img src={item.image_url} alt={item?.name} />
+                            ) : (
+                              <div className="log-mini-slot-label">{item?.name || slot}</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
 export default function WardrobePage({
   items,
   savedOutfits,
@@ -78,6 +178,10 @@ export default function WardrobePage({
   onSaveOutfit,
   onDeleteOutfit,
   inspirationItems = [],
+  outfitLog = [],
+  onLogOutfit,
+  onDeleteLogEntry,
+  onClearLog,
 }) {
   const [subTab, setSubTab] = useState('items')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -106,6 +210,9 @@ export default function WardrobePage({
         </button>
         <button className={`subnav-tab ${subTab === 'saved' ? 'active' : ''}`} onClick={() => setSubTab('saved')}>
           Saved ({savedOutfits.length})
+        </button>
+        <button className={`subnav-tab ${subTab === 'log' ? 'active' : ''}`} onClick={() => setSubTab('log')}>
+          Weekly Log {outfitLog.length > 0 && `(${outfitLog.length})`}
         </button>
       </div>
 
@@ -171,6 +278,8 @@ export default function WardrobePage({
             onSaveOutfit={onSaveOutfit}
             onAnchorToggle={onAnchorToggle}
             inspirationItems={inspirationItems}
+            outfitLog={outfitLog}
+            onLogOutfit={onLogOutfit}
           />
         </>
       )}
@@ -199,6 +308,16 @@ export default function WardrobePage({
             </div>
           )}
         </>
+      )}
+
+      {/* Weekly Log view */}
+      {subTab === 'log' && (
+        <WeeklyLogTab
+          outfitLog={outfitLog}
+          wardrobeItems={items}
+          onDeleteEntry={onDeleteLogEntry}
+          onClearAll={onClearLog}
+        />
       )}
 
       {/* Modals */}
