@@ -80,6 +80,7 @@ export default function App() {
 
   const [autoExpireLog, setAutoExpireLog] = useState(() => localStorage.getItem('outfit_log_auto_expire') === 'true')
   const autoExpireLogRef = useRef(autoExpireLog)
+  const [outfitLogReady, setOutfitLogReady] = useState(false)
 
   const [anchored, setAnchored] = useState(new Set())
 
@@ -148,7 +149,14 @@ export default function App() {
       setSavedOutfits(o.data || [])
       setTrips(t.data || [])
       setInspirationImages(i.data || [])
-      // outfit_log silently falls back to [] if the table doesn't exist yet
+      // outfit_log — detect if the table hasn't been created in Supabase yet
+      if (ol.error) {
+        console.warn('outfit_log table error:', ol.error.message)
+        setOutfitLog([])
+        setOutfitLogReady(false)
+      } else {
+        setOutfitLogReady(true)
+      }
       const logData = ol.data || []
 
       // Auto-expire: delete entries older than 7 days if the setting is on
@@ -566,6 +574,7 @@ export default function App() {
             onDeleteOutfit={deleteOutfit}
             inspirationItems={inspirationImages}
             outfitLog={outfitLog}
+            outfitLogReady={outfitLogReady}
             onLogOutfit={addOutfitLog}
             onDeleteLogEntry={deleteOutfitLogEntry}
             onClearLog={clearOutfitLog}

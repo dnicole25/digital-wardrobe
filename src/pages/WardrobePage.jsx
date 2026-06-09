@@ -73,7 +73,7 @@ const SLOT_CATEGORY_MAP = {
   belt: ['belt'], accessory: ['accessory', 'sunglasses', 'other'],
 }
 
-function WeeklyLogTab({ outfitLog, wardrobeItems, onDeleteEntry, onClearAll, onUpdateEntry, autoExpireLog, onToggleAutoExpire }) {
+function WeeklyLogTab({ outfitLog, outfitLogReady, wardrobeItems, onDeleteEntry, onClearAll, onUpdateEntry, autoExpireLog, onToggleAutoExpire }) {
   const [clearing, setClearing] = useState(false)
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [editSlots, setEditSlots] = useState({})
@@ -115,6 +115,18 @@ function WeeklyLogTab({ outfitLog, wardrobeItems, onDeleteEntry, onClearAll, onU
     grouped[entry.date].push(entry)
   }
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
+
+  if (!outfitLogReady) {
+    return (
+      <div>
+        <h2 className="section-title" style={{ marginBottom: 16 }}>Weekly Log</h2>
+        <div className="log-setup-notice">
+          <strong>One-time setup required</strong>
+          <p>The outfit log table hasn't been created in your Supabase database yet. To enable this feature, open your Supabase project, go to the <strong>SQL Editor</strong>, and run the <code>create table outfit_log</code> block from <code>schema.sql</code>.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -273,6 +285,7 @@ export default function WardrobePage({
   onDeleteOutfit,
   inspirationItems = [],
   outfitLog = [],
+  outfitLogReady = false,
   onLogOutfit,
   onDeleteLogEntry,
   onClearLog,
@@ -376,6 +389,7 @@ export default function WardrobePage({
             onAnchorToggle={onAnchorToggle}
             inspirationItems={inspirationItems}
             outfitLog={outfitLog}
+            outfitLogReady={outfitLogReady}
             onLogOutfit={onLogOutfit}
           />
         </>
@@ -411,6 +425,7 @@ export default function WardrobePage({
       {subTab === 'log' && (
         <WeeklyLogTab
           outfitLog={outfitLog}
+          outfitLogReady={outfitLogReady}
           wardrobeItems={items}
           onDeleteEntry={onDeleteLogEntry}
           onClearAll={onClearLog}

@@ -17,6 +17,7 @@ export default function OutfitGenerator({
   preAnchoredItem,
   inspirationItems = [],
   outfitLog = [],
+  outfitLogReady = false,
   onLogOutfit,
 }) {
   const [location, setLocation] = useState('')
@@ -31,6 +32,7 @@ export default function OutfitGenerator({
   const [saving, setSaving] = useState(false)
   const [logging, setLogging] = useState(false)
   const [logged, setLogged] = useState(false)
+  const [logError, setLogError] = useState('')
 
   const itemById = useCallback(id => wardrobeItems.find(i => i.id === id) || null, [wardrobeItems])
 
@@ -153,6 +155,7 @@ export default function OutfitGenerator({
   async function handleLog() {
     if (!outfit || !onLogOutfit) return
     setLogging(true)
+    setLogError('')
     try {
       const d = new Date(date + 'T12:00:00')
       const weekday = d.toLocaleDateString('en-US', { weekday: 'long' })
@@ -160,6 +163,7 @@ export default function OutfitGenerator({
       setLogged(true)
     } catch (err) {
       console.error('Log failed:', err)
+      setLogError(err.message || 'Failed to save to log. Make sure the outfit_log table exists in Supabase.')
     } finally {
       setLogging(false)
     }
@@ -346,17 +350,25 @@ export default function OutfitGenerator({
               <button
                 className={`btn-outline${logged ? ' log-success' : ''}`}
                 onClick={handleLog}
-                disabled={logging || logged}
+                disabled={logging || logged || !outfitLogReady}
+                title={!outfitLogReady ? 'Run the outfit_log SQL in Supabase to enable this feature' : undefined}
                 style={{ flex: 1 }}
               >
                 {logging
                   ? <span className="spin">◌</span>
                   : logged
                     ? '✓ Logged'
-                    : '📅 Log Outfit'}
+                    : !outfitLogReady
+                      ? '📅 Log (setup needed)'
+                      : '📅 Log Outfit'}
               </button>
             )}
           </div>
+          {logError && (
+            <div style={{ fontSize: 11, color: '#c0392b', marginTop: 8, padding: '6px 10px', background: '#fdecea', borderRadius: 2 }}>
+              {logError}
+            </div>
+          )}
         </>
         )
       })()}

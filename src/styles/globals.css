@@ -1467,6 +1467,32 @@ select.input-field {
   flex-shrink: 0;
 }
 
+.log-setup-notice {
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 24px 28px;
+  font-size: 13px;
+  color: var(--charcoal);
+  line-height: 1.6;
+  max-width: 520px;
+}
+.log-setup-notice strong {
+  display: block;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--black);
+  margin-bottom: 8px;
+}
+.log-setup-notice code {
+  background: rgba(139,126,110,0.12);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 11px;
+  color: var(--charcoal);
+}
+
 /* ============================================================
    LOGIN PAGE
    ============================================================ */
