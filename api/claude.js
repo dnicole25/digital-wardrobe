@@ -89,8 +89,10 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
     : 'No anchored items.'
 
   const excludeNote = excludeIds?.length
-    ? `REGENERATION — these items were just shown. Pick DIFFERENT items for variety (do not reuse these IDs unless they are anchored): ${excludeIds.join(', ')}`
+    ? `FORBIDDEN — these IDs were already shown and MUST NOT appear in this outfit (except anchored items). This is a hard rule — using any forbidden ID is an error: ${excludeIds.join(', ')}`
     : ''
+
+  const varietyNote = `VARIETY: This wardrobe contains many items. Do not habitually default to the same pieces every time. For each slot, consider all qualifying items and deliberately choose from across the full range — including less-obvious picks, different colors, and combinations you have not suggested before. Avoid safe defaults; aim for a fresh, well-considered outfit.`
 
   const season = weather?.season || ''
   const timeLabel = timeOfDay === 'night' ? 'evening/night' : 'daytime'
@@ -127,6 +129,7 @@ Available wardrobe items:
 ${JSON.stringify(items)}
 ${anchoredList}
 ${excludeNote}
+${varietyNote}
 
 Instructions:
 1. Select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the temperature'} and ${weather?.condition || 'the conditions'}
@@ -311,11 +314,14 @@ async function generateTripOutfit({ destination, date, timeOfDay, items, usedIds
     ? `Already used on this trip (prefer reuse for mix-and-match): ${usedIds.join(', ')}`
     : 'No items used yet on this trip.'
 
+  const varietyNote = `VARIETY: For slots not covered by already-used items, deliberately choose from across the full range of qualifying wardrobe pieces — do not default to the same items for every outfit. Explore different combinations that still work with the reused pieces.`
+
   const text = await callAnthropic([{
     role: 'user',
     content: `You are a fashion stylist for a trip to ${destination}. Date: ${date}, Time: ${timeOfDay}.
 Wardrobe: ${JSON.stringify(items)}
 ${usedStr}
+${varietyNote}
 
 STYLE COHERENCE — apply every rule below before finalising:
 a. COLOR PALETTE: Build around 2–3 colors max. Use item color fields. Neutrals (black, white, ivory, beige, grey, navy, camel) pair with almost anything. Do not combine items whose colors clash.
@@ -342,8 +348,10 @@ async function generateWishlistOutfit({ anchoredItems, wardrobeItems, occasion, 
     : ''
 
   const excludeNote = excludeIds?.length
-    ? `REGENERATION — these items were just shown. Pick DIFFERENT wardrobe items for variety (do not reuse these IDs): ${excludeIds.join(', ')}`
+    ? `FORBIDDEN — these wardrobe IDs were already shown and MUST NOT appear in this outfit. This is a hard rule — using any forbidden ID is an error: ${excludeIds.join(', ')}`
     : ''
+
+  const varietyNote = `VARIETY: Do not habitually default to the same wardrobe pieces. For each slot, consider all qualifying items and deliberately choose from across the full range — including less-obvious picks, different colors, and combinations not suggested before.`
 
   // Build a clear slot assignment for each anchored wishlist item
   const wishlistSlotLines = anchoredItems.map(i => `  • Slot "${i.category}" → MUST use id "${i.id}" (${i.name})`).join('\n')
@@ -365,6 +373,7 @@ STEP 2 — Fill ALL remaining slots using ONLY the wardrobe IDs listed below. Yo
 Wardrobe items available (use ONLY these IDs for non-wishlist slots):
 ${JSON.stringify(wardrobeItems)}
 ${excludeNote}
+${varietyNote}
 
 STYLE COHERENCE — apply every rule below before finalising:
 a. COLOR PALETTE: Build around 2–3 colors max. Use the wishlist piece(s) as the color anchor and select wardrobe items whose colors coordinate with them. Do not combine items whose colors clash or compete.
