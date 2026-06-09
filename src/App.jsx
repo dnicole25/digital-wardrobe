@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import { uploadFile, uploadBase64 } from './lib/storage'
 import WardrobePage from './pages/WardrobePage'
@@ -78,6 +78,9 @@ export default function App() {
   const [inspirationImages, setInspirationImages] = useState([])
   const [outfitLog, setOutfitLog] = useState([])
 
+  const [autoExpireLog, setAutoExpireLog] = useState(() => localStorage.getItem('outfit_log_auto_expire') === 'true')
+  const autoExpireLogRef = useRef(autoExpireLog)
+
   const [anchored, setAnchored] = useState(new Set())
 
   // Auth
@@ -146,7 +149,23 @@ export default function App() {
       setTrips(t.data || [])
       setInspirationImages(i.data || [])
       // outfit_log silently falls back to [] if the table doesn't exist yet
-      setOutfitLog(ol.data || [])
+      const logData = ol.data || []
+
+      // Auto-expire: delete entries older than 7 days if the setting is on
+      if (autoExpireLogRef.current) {
+        const cutoff = new Date()
+        cutoff.setDate(cutoff.getDate() - 7)
+        const cutoffStr = cutoff.toISOString().split('T')[0]
+        const expired = logData.filter(e => e.date < cutoffStr)
+        if (expired.length > 0) {
+          await supabase.from('outfit_log').delete().in('id', expired.map(e => e.id))
+          setOutfitLog(logData.filter(e => e.date >= cutoffStr))
+        } else {
+          setOutfitLog(logData)
+        }
+      } else {
+        setOutfitLog(logData)
+      }
     } catch (err) {
       setDataLoadError(`Could not load your data: ${err.message}`)
       console.error('Failed to load data:', err)
@@ -353,6 +372,36 @@ export default function App() {
     showSaved()
   }
 
+  async function updateOutfitLogEntry(id, updates) {
+    const { data, error } = await supabase
+      .from('outfit_log')
+      .update(updates)
+      .eq('id', id)
+      .select().single()
+    if (error) throw new Error(error.message)
+    setOutfitLog(prev => prev.map(e => e.id === id ? data : e))
+    showSaved()
+  }
+
+  function toggleAutoExpireLog() {
+    const next = !autoExpireLog
+    setAutoExpireLog(next)
+    autoExpireLogRef.current = next
+    localStorage.setItem('outfit_log_auto_expire', next ? 'true' : 'false')
+    if (next && user) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - 7)
+      const cutoffStr = cutoff.toISOString().split('T')[0]
+      setOutfitLog(prev => {
+        const expired = prev.filter(e => e.date < cutoffStr)
+        if (expired.length > 0) {
+          supabase.from('outfit_log').delete().in('id', expired.map(e => e.id))
+        }
+        return prev.filter(e => e.date >= cutoffStr)
+      })
+    }
+  }
+
   // --- Anchor ---
   const handleAnchorToggle = useCallback(id => {
     setAnchored(prev => {
@@ -520,6 +569,9 @@ export default function App() {
             onLogOutfit={addOutfitLog}
             onDeleteLogEntry={deleteOutfitLogEntry}
             onClearLog={clearOutfitLog}
+            onUpdateLogEntry={updateOutfitLogEntry}
+            autoExpireLog={autoExpireLog}
+            onToggleAutoExpire={toggleAutoExpireLog}
           />
         )}
         {activeTab === 'wishlist' && (

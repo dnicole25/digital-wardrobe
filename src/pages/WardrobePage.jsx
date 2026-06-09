@@ -67,8 +67,17 @@ function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
   )
 }
 
-function WeeklyLogTab({ outfitLog, wardrobeItems, onDeleteEntry, onClearAll }) {
+const SLOT_CATEGORY_MAP = {
+  dress: ['dress'], top: ['top'], cardigan: ['cardigan'], bottom: ['bottom'],
+  outerwear: ['outerwear'], shoes: ['shoes'], bag: ['bag'], jewelry: ['jewelry'],
+  belt: ['belt'], accessory: ['accessory', 'sunglasses', 'other'],
+}
+
+function WeeklyLogTab({ outfitLog, wardrobeItems, onDeleteEntry, onClearAll, onUpdateEntry, autoExpireLog, onToggleAutoExpire }) {
   const [clearing, setClearing] = useState(false)
+  const [editingEntryId, setEditingEntryId] = useState(null)
+  const [editSlots, setEditSlots] = useState({})
+  const [savingEdit, setSavingEdit] = useState(false)
 
   async function handleClearAll() {
     if (!window.confirm('Clear all logged outfits? Those items will become available again for generation.')) return
@@ -76,13 +85,27 @@ function WeeklyLogTab({ outfitLog, wardrobeItems, onDeleteEntry, onClearAll }) {
     try { await onClearAll() } catch (err) { console.error(err) } finally { setClearing(false) }
   }
 
-  if (outfitLog.length === 0) {
-    return (
-      <div className="empty-state">
-        <h3>No outfits logged yet</h3>
-        <p>Generate an outfit and tap "Log Outfit" to record what you wore each day.</p>
-      </div>
-    )
+  function handleStartEdit(entry) {
+    setEditingEntryId(entry.id)
+    setEditSlots({ ...entry.outfit_slots })
+  }
+
+  function handleCancelEdit() {
+    setEditingEntryId(null)
+    setEditSlots({})
+  }
+
+  async function handleSaveEdit(entryId) {
+    setSavingEdit(true)
+    try {
+      await onUpdateEntry(entryId, { outfit_slots: editSlots })
+      setEditingEntryId(null)
+      setEditSlots({})
+    } catch (err) {
+      console.error('Edit save failed:', err)
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   // Group by date, most recent first
@@ -95,74 +118,145 @@ function WeeklyLogTab({ outfitLog, wardrobeItems, onDeleteEntry, onClearAll }) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <h2 className="section-title">Weekly Log</h2>
         <button
           className="btn-outline"
           onClick={handleClearAll}
-          disabled={clearing}
+          disabled={clearing || outfitLog.length === 0}
           style={{ fontSize: 11, color: '#c0392b', borderColor: 'rgba(192,57,43,0.3)' }}
         >
           {clearing ? <span className="spin">◌</span> : 'Clear Log'}
         </button>
       </div>
-      <p style={{ fontSize: 13, color: 'var(--taupe)', marginBottom: 24, marginTop: -16 }}>
-        Items logged here won't be suggested again for the same occasion. Clear the log to reset.
-      </p>
 
-      <div className="log-entries">
-        {sortedDates.map(date => {
-          const entries = grouped[date]
-          const weekday = entries[0].weekday
-          const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-
-          return (
-            <div key={date} className="log-day">
-              <div className="log-day-header">
-                <span className="log-day-name">{weekday}</span>
-                <span className="log-day-date">{displayDate}</span>
-              </div>
-              {entries.map(entry => {
-                const slots = entry.outfit_slots || {}
-                const hasDress = !!slots.dress
-                const filledSlots = ALL_SLOT_KEYS.filter(slot => {
-                  if ((slot === 'top' || slot === 'bottom') && hasDress) return false
-                  return !!slots[slot]
-                })
-                return (
-                  <div key={entry.id} className="log-entry">
-                    <div className="log-entry-header">
-                      {entry.occasion && <span className="tag gold">{entry.occasion}</span>}
-                      <button
-                        className="btn-icon"
-                        style={{ color: 'var(--sand)', fontSize: 13 }}
-                        onClick={() => onDeleteEntry(entry.id)}
-                        title="Remove this entry"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="log-mini-grid">
-                      {filledSlots.map(slot => {
-                        const item = wardrobeItems.find(i => i.id === slots[slot])
-                        return (
-                          <div key={slot} className="log-mini-slot" title={`${slot}: ${item?.name || 'unknown'}`}>
-                            {item?.image_url ? (
-                              <img src={item.image_url} alt={item?.name} />
-                            ) : (
-                              <div className="log-mini-slot-label">{item?.name || slot}</div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })}
+      {/* Auto-expire toggle */}
+      <div className="log-settings-row">
+        <label className="log-toggle-label">
+          <input
+            type="checkbox"
+            checked={autoExpireLog}
+            onChange={onToggleAutoExpire}
+            style={{ marginRight: 6 }}
+          />
+          Auto-clear entries older than 7 days
+        </label>
+        <span className="log-settings-hint">
+          {autoExpireLog ? 'Entries expire automatically after one week.' : 'Items stay excluded until you clear the log manually.'}
+        </span>
       </div>
+
+      {outfitLog.length === 0 ? (
+        <div className="empty-state" style={{ paddingTop: 48 }}>
+          <h3>No outfits logged yet</h3>
+          <p>Generate an outfit and tap "Log Outfit" to record what you wore each day.</p>
+        </div>
+      ) : (
+        <div className="log-entries">
+          {sortedDates.map(date => {
+            const entries = grouped[date]
+            const weekday = entries[0].weekday
+            const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
+            return (
+              <div key={date} className="log-day">
+                <div className="log-day-header">
+                  <span className="log-day-name">{weekday}</span>
+                  <span className="log-day-date">{displayDate}</span>
+                </div>
+                {entries.map(entry => {
+                  const slots = entry.outfit_slots || {}
+                  const hasDress = !!slots.dress
+                  const filledSlots = ALL_SLOT_KEYS.filter(slot => {
+                    if ((slot === 'top' || slot === 'bottom') && hasDress) return false
+                    return !!slots[slot]
+                  })
+                  const isEditing = editingEntryId === entry.id
+
+                  return (
+                    <div key={entry.id} className="log-entry">
+                      <div className="log-entry-header">
+                        {entry.occasion && <span className="tag gold">{entry.occasion}</span>}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            className="btn-icon"
+                            style={{ fontSize: 11, color: 'var(--taupe)' }}
+                            onClick={() => isEditing ? handleCancelEdit() : handleStartEdit(entry)}
+                            title={isEditing ? 'Cancel edit' : 'Edit items'}
+                          >
+                            {isEditing ? 'Cancel' : 'Edit'}
+                          </button>
+                          <button
+                            className="btn-icon"
+                            style={{ color: 'var(--sand)', fontSize: 13 }}
+                            onClick={() => onDeleteEntry(entry.id)}
+                            title="Remove this entry"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Mini thumbnail grid */}
+                      {!isEditing && (
+                        <div className="log-mini-grid">
+                          {filledSlots.map(slot => {
+                            const item = wardrobeItems.find(i => i.id === slots[slot])
+                            return (
+                              <div key={slot} className="log-mini-slot" title={`${slot}: ${item?.name || 'unknown'}`}>
+                                {item?.image_url ? (
+                                  <img src={item.image_url} alt={item?.name} />
+                                ) : (
+                                  <div className="log-mini-slot-label">{item?.name || slot}</div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* Edit panel */}
+                      {isEditing && (
+                        <div className="log-edit-panel">
+                          <p className="log-edit-hint">Swap any item — only items in that category are shown.</p>
+                          {filledSlots.map(slot => {
+                            const slotCategories = SLOT_CATEGORY_MAP[slot] || [slot]
+                            const options = wardrobeItems.filter(i => slotCategories.includes(i.category))
+                            return (
+                              <div key={slot} className="log-edit-row">
+                                <label className="log-edit-label">{slot}</label>
+                                <select
+                                  className="input-field"
+                                  value={editSlots[slot] || ''}
+                                  onChange={e => setEditSlots(prev => ({ ...prev, [slot]: e.target.value || null }))}
+                                  style={{ flex: 1, fontSize: 12 }}
+                                >
+                                  <option value="">— remove —</option>
+                                  {options.map(item => (
+                                    <option key={item.id} value={item.id}>{item.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )
+                          })}
+                          <button
+                            className="btn-primary"
+                            onClick={() => handleSaveEdit(entry.id)}
+                            disabled={savingEdit}
+                            style={{ width: '100%', marginTop: 10, fontSize: 12 }}
+                          >
+                            {savingEdit ? <span className="spin">◌</span> : 'Save Changes'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </>
   )
 }
@@ -182,6 +276,9 @@ export default function WardrobePage({
   onLogOutfit,
   onDeleteLogEntry,
   onClearLog,
+  onUpdateLogEntry,
+  autoExpireLog,
+  onToggleAutoExpire,
 }) {
   const [subTab, setSubTab] = useState('items')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -317,6 +414,9 @@ export default function WardrobePage({
           wardrobeItems={items}
           onDeleteEntry={onDeleteLogEntry}
           onClearAll={onClearLog}
+          onUpdateEntry={onUpdateLogEntry}
+          autoExpireLog={autoExpireLog}
+          onToggleAutoExpire={onToggleAutoExpire}
         />
       )}
 

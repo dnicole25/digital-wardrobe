@@ -1410,6 +1410,63 @@ select.input-field {
   background: #f0faf0 !important;
 }
 
+.log-settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  margin-bottom: 24px;
+}
+
+.log-toggle-label {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--charcoal);
+  cursor: pointer;
+  user-select: none;
+}
+
+.log-settings-hint {
+  font-size: 11px;
+  color: var(--taupe);
+  padding-left: 22px;
+}
+
+.log-edit-panel {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  animation: fadeIn 0.2s ease;
+}
+
+.log-edit-hint {
+  font-size: 11px;
+  color: var(--taupe);
+  margin: 0 0 10px;
+}
+
+.log-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.log-edit-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  width: 64px;
+  flex-shrink: 0;
+}
+
 /* ============================================================
    LOGIN PAGE
    ============================================================ */
