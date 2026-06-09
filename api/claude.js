@@ -135,6 +135,12 @@ Instructions:
 4. If rainy or snowy conditions, include outerwear and practical footwear
 5. If sunny and warm, choose lighter fabrics and layers
 6. Reflect the style aesthetic from any inspiration boards or images provided
+7. STYLE COHERENCE — apply every rule below before finalising:
+   a. COLOR PALETTE: Build around 2–3 colors max. Use the color field of each item. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) pair with almost anything. Do not combine items whose colors clash or compete with each other.
+   b. PATTERN DISCIPLINE: Infer patterns from the item name (e.g. "striped", "floral", "plaid", "printed", "checked"). NEVER pair two bold patterns of the same type — no two striped pieces, no two florals, no two plaids. If one visible piece is patterned, every other visible piece must be a solid color or a completely different, subtle pattern. Always pick up a color from the pattern for any coordinating solids.
+   c. AESTHETIC CONSISTENCY: All pieces must share a similar formality and style. Do not mix very casual items with very formal ones (e.g. a graphic tee with a pencil skirt, or athletic sneakers with a cocktail dress).
+   d. ACCESSORIES MUST RELATE: Bag, belt, and jewelry must connect to the outfit palette — matching a key color, a neutral tone, or a metal that ties the look together. Do not select an accessory whose color is unrelated to anything else in the outfit.
+   e. FINAL CHECK: Before returning, review whether every selected item works with every other item on color, pattern, and style. If any item conflicts, replace it with one that fits.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Rules:
@@ -310,6 +316,14 @@ async function generateTripOutfit({ destination, date, timeOfDay, items, usedIds
     content: `You are a fashion stylist for a trip to ${destination}. Date: ${date}, Time: ${timeOfDay}.
 Wardrobe: ${JSON.stringify(items)}
 ${usedStr}
+
+STYLE COHERENCE — apply every rule below before finalising:
+a. COLOR PALETTE: Build around 2–3 colors max. Use item color fields. Neutrals (black, white, ivory, beige, grey, navy, camel) pair with almost anything. Do not combine items whose colors clash.
+b. PATTERN DISCIPLINE: Infer patterns from item names (striped, floral, plaid, printed, checked). NEVER pair two bold patterns of the same type. If one visible piece is patterned, all others must be solid or a completely different subtle pattern. Pick up a color from the pattern for coordinating solids.
+c. AESTHETIC CONSISTENCY: All pieces must share a similar formality and style. Do not mix very casual and very formal items.
+d. ACCESSORIES MUST RELATE: Bag, belt, and jewelry colors must connect to the outfit palette.
+e. FINAL CHECK: Review every selected item against every other. Replace any item that conflicts in color, pattern, or style.
+
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
 Rules:
 - Use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
@@ -351,6 +365,13 @@ STEP 2 — Fill ALL remaining slots using ONLY the wardrobe IDs listed below. Yo
 Wardrobe items available (use ONLY these IDs for non-wishlist slots):
 ${JSON.stringify(wardrobeItems)}
 ${excludeNote}
+
+STYLE COHERENCE — apply every rule below before finalising:
+a. COLOR PALETTE: Build around 2–3 colors max. Use the wishlist piece(s) as the color anchor and select wardrobe items whose colors coordinate with them. Do not combine items whose colors clash or compete.
+b. PATTERN DISCIPLINE: Infer patterns from item names (e.g. "striped", "floral", "plaid", "printed"). NEVER pair two bold patterns of the same type. If one visible piece is patterned, every other visible piece must be a solid or a completely different, subtle pattern. Pick up a color from the pattern for coordinating solids.
+c. AESTHETIC CONSISTENCY: All pieces must share a similar formality and style. Do not mix very casual items with very formal ones.
+d. ACCESSORIES MUST RELATE: Bag, belt, and jewelry must connect to the outfit palette — matching a key color, a neutral, or a metal that ties the look together.
+e. FINAL CHECK: Review every selected item against every other. If any item conflicts in color, pattern, or style, replace it.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
 Rules:
