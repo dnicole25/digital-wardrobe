@@ -43,6 +43,9 @@ export default function ItemCard({
   onMoveToWardrobe,
   onFindSimilar,
   onGenerateOutfit,
+  onTrackPrice,
+  hasPriceEntries = false,
+  hasPriceDrop = false,
 }) {
   const [imageError, setImageError] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -175,6 +178,16 @@ export default function ItemCard({
               title="Find similar items"
             >
               ⌕ Similar
+            </button>
+          )}
+          {onTrackPrice && (
+            <button
+              className={`btn-outline${hasPriceDrop ? ' price-drop-btn' : ''}`}
+              style={{ flex: 1, fontSize: '10px', padding: '6px 8px', position: 'relative' }}
+              onClick={onTrackPrice}
+              title="Track price"
+            >
+              {hasPriceDrop ? '↓ Price!' : hasPriceEntries ? '$ Prices' : '$ Track'}
             </button>
           )}
         </div>

@@ -1306,6 +1306,156 @@ select.input-field {
 }
 
 /* ============================================================
+   PRICE TRACKING
+   ============================================================ */
+.price-alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f0faf0;
+  border: 1px solid #a8d5a2;
+  border-radius: 2px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--charcoal);
+  animation: fadeIn 0.3s ease;
+}
+
+.price-alert-icon {
+  font-size: 16px;
+  color: #2e7d32;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.price-alert-text {
+  line-height: 1.5;
+}
+
+.price-tracker {
+  padding: 12px;
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 2px 2px;
+  animation: fadeIn 0.2s ease;
+}
+
+.price-add-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.price-add-form .input-field {
+  min-width: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.price-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--white);
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.price-row:last-child { border-bottom: none; }
+
+.price-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.price-store {
+  font-weight: 400;
+  color: var(--charcoal);
+  letter-spacing: 0.02em;
+}
+
+.price-drop-badge {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
+.price-rose-badge {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c0392b;
+  background: #fdecea;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
+.price-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.price-amount {
+  font-weight: 400;
+  color: var(--charcoal);
+  font-size: 13px;
+}
+
+.price-date {
+  font-size: 10px;
+  color: var(--taupe);
+  letter-spacing: 0.04em;
+}
+
+.price-link {
+  font-size: 11px;
+  color: var(--gold);
+  text-decoration: none;
+}
+.price-link:hover { text-decoration: underline; }
+
+.price-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--sand);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.2s ease;
+}
+.price-delete:hover { color: #c0392b; }
+
+.price-drop-btn {
+  color: #2e7d32 !important;
+  border-color: #a8d5a2 !important;
+  background: #f0faf0 !important;
+  font-weight: 400 !important;
+}
+
+/* ============================================================
    LOGIN PAGE
    ============================================================ */
 .login-page {
