@@ -102,6 +102,10 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
     ? `Season: ${season}. STRONGLY prefer items tagged for ${season} in their seasons field. Items tagged for other seasons are less appropriate unless nothing else is available.`
     : date ? `Date: ${date}. Choose seasonally appropriate items based on the time of year.` : ''
 
+  const occasionNote = occasion
+    ? `Occasion: ${occasion}. STRONGLY prefer items whose occasions field includes "${occasion}". Do NOT select items whose occasions field is set but does not include "${occasion}" — only fall back to untagged items if no occasion-matched alternative exists.`
+    : ''
+
   const timeNote = timeOfDay === 'night'
     ? 'It is evening/night — temperatures will be cooler than the daytime high. Choose items suited for evening wear and account for the lower nighttime temperature.'
     : 'It is daytime — choose items suited for the daytime temperature and conditions, including sun protection if it is sunny.'
@@ -113,8 +117,8 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
 Location: ${location || 'unspecified'}
 Date: ${date || 'unspecified'}
 Time: ${timeLabel}
-Occasion: ${occasion || 'casual'}
 ${weatherStr}
+${occasionNote}
 ${seasonNote}
 ${timeNote}
 ${inspirationText}
@@ -126,10 +130,10 @@ ${excludeNote}
 
 Instructions:
 1. Select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the temperature'} and ${weather?.condition || 'the conditions'}
-2. Prefer items whose seasons field includes "${season || 'the current season'}"
-3. If rainy or snowy conditions, include outerwear and practical footwear
-4. If sunny and warm, choose lighter fabrics and layers
-5. Match the formality to the occasion
+2. ONLY select items whose occasions field includes "${occasion || 'the selected occasion'}" — skip items tagged for other occasions
+3. Prefer items whose seasons field includes "${season || 'the current season'}"
+4. If rainy or snowy conditions, include outerwear and practical footwear
+5. If sunny and warm, choose lighter fabrics and layers
 6. Reflect the style aesthetic from any inspiration boards or images provided
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
