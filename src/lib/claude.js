@@ -45,8 +45,8 @@ export async function findSimilarItems(item, sources) {
   return callApi('findSimilar', { item, sources })
 }
 
-export async function generateTripOutfit({ destination, date, timeOfDay, items, usedIds, occasion, packingList, weather, season }) {
-  return callApi('generateTripOutfit', { destination, date, timeOfDay, items, packingList: usedIds, occasion, weather, season })
+export async function generateTripOutfit({ destination, date, timeOfDay, items, packingList, occasion, weather, season, previousOutfits }) {
+  return callApi('generateTripOutfit', { destination, date, timeOfDay, items, packingList, occasion, weather, season, previousOutfits })
 }
 
 export async function getTripWeather(destination, startDate, endDate) {

@@ -1883,6 +1883,66 @@ select.input-field {
   position: relative;
 }
 
+/* Slot hover action buttons — remove (✕) and navigate (‹ ›) */
+.slot-remove-btn,
+.slot-nav-btn {
+  position: absolute;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.day-mini-slot:hover .slot-remove-btn,
+.day-mini-slot:hover .slot-nav-btn {
+  opacity: 1;
+}
+
+.slot-remove-btn {
+  top: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(180, 30, 30, 0.85);
+  color: #fff;
+  font-size: 8px;
+}
+
+.slot-remove-btn:hover {
+  background: rgba(200, 20, 20, 1);
+}
+
+.slot-nav-btn {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 13px;
+  height: 26px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+}
+
+.slot-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.slot-nav-btn--prev {
+  left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.slot-nav-btn--next {
+  right: 0;
+  border-radius: 3px 0 0 3px;
+}
+
 /* ---- By Item View ---- */
 .trip-by-item-view {
   animation: fadeIn 0.2s ease;

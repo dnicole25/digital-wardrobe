@@ -308,7 +308,7 @@ Return JSON only as an array: [{ "name": "", "brand": "", "description": "", "pr
   return Array.isArray(result) ? result : result.items || []
 }
 
-async function generateTripOutfit({ items, anchored, packingList, weather, occasion, timeOfDay, date, destination, season }) {
+async function generateTripOutfit({ items, anchored, packingList, previousOutfits, weather, occasion, timeOfDay, date, destination, season }) {
   const anchoredList = anchored?.length
     ? `ANCHORED ITEMS — MUST be included (place in their appropriate slots): ${anchored.join(', ')}`
     : 'No anchored items.'
@@ -316,6 +316,20 @@ async function generateTripOutfit({ items, anchored, packingList, weather, occas
   const packingStr = packingList?.length
     ? `PACKING LIST — items already selected for other days of this trip (prefer reusing these for efficient packing, but create a fresh-looking outfit by pairing differently):\n${packingList.join(', ')}`
     : 'No items packed yet for this trip.'
+
+  const noRepeatNote = previousOutfits?.length
+    ? `OUTFITS ALREADY PLANNED FOR THIS TRIP — STRICTLY FORBIDDEN TO REPEAT:\n${
+        previousOutfits
+          .map((o, i) => {
+            const slotStr = Object.entries(o.slots || {})
+              .filter(([, v]) => v)
+              .map(([k, v]) => `${k}=${v}`)
+              .join(', ')
+            return `Outfit ${i + 1} (${o.date || ''} ${o.time || ''}): ${slotStr}`
+          })
+          .join('\n')
+      }`
+    : ''
 
   const varietyNote = `VARIETY: This wardrobe contains many items. Do not habitually default to the same pieces every time. For each slot, consider all qualifying items and deliberately choose from across the full range — including less-obvious picks, different colors, and combinations you have not suggested before. Avoid safe defaults; aim for a fresh, well-considered outfit.`
 
@@ -345,7 +359,7 @@ ${occasionNote}
 ${seasonNote}
 ${timeNote}
 
-${packingStr}
+${noRepeatNote ? noRepeatNote + '\n' : ''}${packingStr}
 
 Available wardrobe items:
 ${JSON.stringify(items)}
@@ -364,6 +378,7 @@ RULE 7 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and 
 RULE 8 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
 RULE 9 — ANCHORED ITEMS: If anchored items are listed above, MUST include them in their appropriate slots.
 RULE 10 — FINAL CHECK: Before returning, verify every selected item against every other item. If any item violates Rules 5–8, replace it. Do not return an outfit that fails any rule.
+RULE 11 — NO DUPLICATE OUTFITS: The outfits listed above under "OUTFITS ALREADY PLANNED" must NOT be reproduced. The core clothing items (dress OR the top+bottom pair) MUST be different from every outfit listed. Sharing 3 or more total items with any previously planned outfit is a critical error — the entire outfit must be reworked until it is clearly distinct.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Structure rules (also mandatory):

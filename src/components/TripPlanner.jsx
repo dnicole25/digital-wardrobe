@@ -205,14 +205,27 @@ function ChecklistView({ trip, wardrobeItems }) {
 }
 
 // MiniOutfitGrid — small thumbnail grid for a set of outfit slots
-// itemUseCounts: optional map of {id -> count} to show versatility badge
-function MiniOutfitGrid({ outfitSlots, wardrobeItems, itemUseCounts }) {
+function MiniOutfitGrid({ outfitSlots, wardrobeItems, itemUseCounts, onRemoveSlot, onSwapSlot }) {
   const itemById = id => wardrobeItems.find(i => i.id === id)
   const hasDress = !!outfitSlots?.dress
   const filledSlots = SLOT_KEYS.filter(slot => {
     if ((slot === 'top' || slot === 'bottom') && hasDress) return false
     return !!outfitSlots?.[slot]
   })
+
+  function getCategoryItems(slot) {
+    const cats = SLOT_CATEGORY_MAP[slot] || [slot]
+    return wardrobeItems.filter(i => cats.includes(i.category))
+  }
+
+  function getAdjacentItem(slot, direction) {
+    const items = getCategoryItems(slot)
+    if (items.length <= 1) return null
+    const idx = items.findIndex(i => i.id === outfitSlots[slot])
+    const len = items.length
+    const newIdx = direction === 'next' ? (idx + 1) % len : (idx - 1 + len) % len
+    return items[newIdx]
+  }
 
   if (filledSlots.length === 0) return null
 
@@ -223,6 +236,8 @@ function MiniOutfitGrid({ outfitSlots, wardrobeItems, itemUseCounts }) {
         const item = itemById(itemId)
         const useCount = itemUseCounts && itemId ? (itemUseCounts[itemId] || 0) : 0
         const isVersatile = useCount >= VERSATILITY_THRESHOLD
+        const prevItem = onSwapSlot ? getAdjacentItem(slot, 'prev') : null
+        const nextItem = onSwapSlot ? getAdjacentItem(slot, 'next') : null
         return (
           <div
             key={slot}
@@ -238,6 +253,27 @@ function MiniOutfitGrid({ outfitSlots, wardrobeItems, itemUseCounts }) {
               <div className="day-mini-slot-badge" title={`Worn ${useCount}× across this trip`}>
                 {useCount}×
               </div>
+            )}
+            {onRemoveSlot && (
+              <button
+                className="slot-remove-btn"
+                onClick={e => { e.stopPropagation(); onRemoveSlot(slot) }}
+                title={`Remove ${slot}`}
+              >✕</button>
+            )}
+            {onSwapSlot && prevItem && (
+              <button
+                className="slot-nav-btn slot-nav-btn--prev"
+                onClick={e => { e.stopPropagation(); onSwapSlot(slot, prevItem.id) }}
+                title={`Previous: ${prevItem.name}`}
+              >‹</button>
+            )}
+            {onSwapSlot && nextItem && (
+              <button
+                className="slot-nav-btn slot-nav-btn--next"
+                onClick={e => { e.stopPropagation(); onSwapSlot(slot, nextItem.id) }}
+                title={`Next: ${nextItem.name}`}
+              >›</button>
             )}
           </div>
         )
@@ -327,6 +363,32 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
   const nightWeather = day.weather?.night || null
   const occasion = day.occasion || ''
 
+  function getExistingOutfits(excludeTime) {
+    const outfits = []
+    for (const d of trip.days || []) {
+      for (const t of ['day', 'night']) {
+        if (d.date === day.date && t === excludeTime) continue
+        const slots = d[t]?.outfit_slots
+        if (slots && Object.values(slots).some(Boolean)) {
+          outfits.push({ date: d.date, time: t, slots })
+        }
+      }
+    }
+    return outfits
+  }
+
+  function handleRemoveSlot(time, slot) {
+    const outfit = day[time]
+    if (!outfit) return
+    onUpdateDay(day.date, { ...day, [time]: { ...outfit, outfit_slots: { ...outfit.outfit_slots, [slot]: null } } })
+  }
+
+  function handleSwapSlot(time, slot, newItemId) {
+    const outfit = day[time]
+    if (!outfit) return
+    onUpdateDay(day.date, { ...day, [time]: { ...outfit, outfit_slots: { ...outfit.outfit_slots, [slot]: newItemId } } })
+  }
+
   async function generateForTime(time) {
     const setter = time === 'day' ? setGeneratingDay : setGeneratingNight
     setter(true)
@@ -340,6 +402,7 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
         items: simplified,
         anchored: anchored ? [...anchored] : [],
         packingList: packingList || [],
+        previousOutfits: getExistingOutfits(time),
         weather,
         occasion,
         timeOfDay: time,
@@ -454,7 +517,13 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
 
           {day.day?.outfit_slots ? (
             <>
-              <MiniOutfitGrid outfitSlots={day.day.outfit_slots} wardrobeItems={wardrobeItems} itemUseCounts={itemUseCounts} />
+              <MiniOutfitGrid
+                outfitSlots={day.day.outfit_slots}
+                wardrobeItems={wardrobeItems}
+                itemUseCounts={itemUseCounts}
+                onRemoveSlot={slot => handleRemoveSlot('day', slot)}
+                onSwapSlot={(slot, id) => handleSwapSlot('day', slot, id)}
+              />
               {day.day.notes && (
                 <p className="trip-outfit-notes">{day.day.notes}</p>
               )}
@@ -514,7 +583,13 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
             </div>
           ) : day.night?.outfit_slots ? (
             <>
-              <MiniOutfitGrid outfitSlots={day.night.outfit_slots} wardrobeItems={wardrobeItems} itemUseCounts={itemUseCounts} />
+              <MiniOutfitGrid
+                outfitSlots={day.night.outfit_slots}
+                wardrobeItems={wardrobeItems}
+                itemUseCounts={itemUseCounts}
+                onRemoveSlot={slot => handleRemoveSlot('night', slot)}
+                onSwapSlot={(slot, id) => handleSwapSlot('night', slot, id)}
+              />
               {day.night.notes && (
                 <p className="trip-outfit-notes">{day.night.notes}</p>
               )}
@@ -849,6 +924,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
 
     const updatedDays = [...days]
     const packingIds = new Set()
+    const previousOutfits = []
 
     for (let i = 0; i < updatedDays.length; i++) {
       const day = updatedDays[i]
@@ -863,6 +939,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
           items: simplified,
           anchored: anchored ? [...anchored] : [],
           packingList: [...packingIds],
+          previousOutfits: [...previousOutfits],
           weather: dayWeather,
           occasion,
           timeOfDay: 'day',
@@ -883,6 +960,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
           accessory: dayResult.accessory || null,
         }
         Object.values(daySlots).forEach(id => id && packingIds.add(id))
+        previousOutfits.push({ date: day.date, time: 'day', slots: daySlots })
 
         // Night outfit
         setGenerateProgress({ current: i * 2 + 2, total: totalSteps })
@@ -892,6 +970,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
           items: simplified,
           anchored: anchored ? [...anchored] : [],
           packingList: [...packingIds],
+          previousOutfits: [...previousOutfits],
           weather: nightWeather,
           occasion,
           timeOfDay: 'night',
@@ -912,6 +991,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
           accessory: nightResult.accessory || null,
         }
         Object.values(nightSlots).forEach(id => id && packingIds.add(id))
+        previousOutfits.push({ date: day.date, time: 'night', slots: nightSlots })
 
         updatedDays[i] = {
           ...day,
