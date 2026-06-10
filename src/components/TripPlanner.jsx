@@ -919,27 +919,33 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
     }))
 
     const days = currentTrip.days || []
-    const totalSteps = days.length * 2
+    // When sameAsDay is set, night is copied from day — only 1 API call needed per day
+    const totalSteps = days.reduce((sum, d) => sum + (d.sameAsDay ? 1 : 2), 0)
     setGenerateProgress({ current: 0, total: totalSteps })
 
     const updatedDays = [...days]
     const packingIds = new Set()
     const previousOutfits = []
+    const RECENT_LIMIT = 10  // keep prompt length stable across long trips
+    let step = 0
 
     for (let i = 0; i < updatedDays.length; i++) {
       const day = updatedDays[i]
       const occasion = day.occasion || ''
 
-      // Day outfit
+      // ── Day outfit ──────────────────────────────────────────────────────────
+      let daySlots = null
+      let dayNotes = ''
+      step++
+      setGenerateProgress({ current: step, total: totalSteps })
       try {
         const dayWeather = day.weather?.day || null
         const season = dayWeather?.season || ''
-        setGenerateProgress({ current: i * 2 + 1, total: totalSteps })
         const dayResult = await generateTripOutfit({
           items: simplified,
           anchored: anchored ? [...anchored] : [],
           packingList: [...packingIds],
-          previousOutfits: [...previousOutfits],
+          previousOutfits: previousOutfits.slice(-RECENT_LIMIT),
           weather: dayWeather,
           occasion,
           timeOfDay: 'day',
@@ -947,7 +953,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
           destination: currentTrip.destination,
           season,
         })
-        const daySlots = {
+        daySlots = {
           dress: dayResult.dress || null,
           top: dayResult.top || null,
           cardigan: dayResult.cardigan || null,
@@ -959,47 +965,62 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
           belt: dayResult.belt || null,
           accessory: dayResult.accessory || null,
         }
+        dayNotes = dayResult.notes || ''
         Object.values(daySlots).forEach(id => id && packingIds.add(id))
         previousOutfits.push({ date: day.date, time: 'day', slots: daySlots })
-
-        // Night outfit
-        setGenerateProgress({ current: i * 2 + 2, total: totalSteps })
-        const nightWeather = day.weather?.night || null
-        const nightSeason = nightWeather?.season || season
-        const nightResult = await generateTripOutfit({
-          items: simplified,
-          anchored: anchored ? [...anchored] : [],
-          packingList: [...packingIds],
-          previousOutfits: [...previousOutfits],
-          weather: nightWeather,
-          occasion,
-          timeOfDay: 'night',
-          date: day.date,
-          destination: currentTrip.destination,
-          season: nightSeason,
-        })
-        const nightSlots = {
-          dress: nightResult.dress || null,
-          top: nightResult.top || null,
-          cardigan: nightResult.cardigan || null,
-          bottom: nightResult.bottom || null,
-          outerwear: nightResult.outerwear || null,
-          shoes: nightResult.shoes || null,
-          bag: nightResult.bag || null,
-          jewelry: nightResult.jewelry || null,
-          belt: nightResult.belt || null,
-          accessory: nightResult.accessory || null,
-        }
-        Object.values(nightSlots).forEach(id => id && packingIds.add(id))
-        previousOutfits.push({ date: day.date, time: 'night', slots: nightSlots })
-
-        updatedDays[i] = {
-          ...day,
-          day: { outfit_slots: daySlots, notes: dayResult.notes || '' },
-          night: { outfit_slots: nightSlots, notes: nightResult.notes || '' },
-        }
       } catch (err) {
-        console.error(`Generate failed for ${day.date}:`, err)
+        console.error(`Day outfit failed for ${day.date}:`, err)
+      }
+
+      // ── Night outfit — skip when sameAsDay, just copy day ──────────────────
+      let nightSlots = null
+      let nightNotes = ''
+      if (day.sameAsDay) {
+        nightSlots = daySlots
+        nightNotes = dayNotes
+      } else {
+        step++
+        setGenerateProgress({ current: step, total: totalSteps })
+        try {
+          const nightWeather = day.weather?.night || null
+          const nightSeason = nightWeather?.season || day.weather?.day?.season || ''
+          const nightResult = await generateTripOutfit({
+            items: simplified,
+            anchored: anchored ? [...anchored] : [],
+            packingList: [...packingIds],
+            previousOutfits: previousOutfits.slice(-RECENT_LIMIT),
+            weather: nightWeather,
+            occasion,
+            timeOfDay: 'night',
+            date: day.date,
+            destination: currentTrip.destination,
+            season: nightSeason,
+          })
+          nightSlots = {
+            dress: nightResult.dress || null,
+            top: nightResult.top || null,
+            cardigan: nightResult.cardigan || null,
+            bottom: nightResult.bottom || null,
+            outerwear: nightResult.outerwear || null,
+            shoes: nightResult.shoes || null,
+            bag: nightResult.bag || null,
+            jewelry: nightResult.jewelry || null,
+            belt: nightResult.belt || null,
+            accessory: nightResult.accessory || null,
+          }
+          nightNotes = nightResult.notes || ''
+          Object.values(nightSlots).forEach(id => id && packingIds.add(id))
+          previousOutfits.push({ date: day.date, time: 'night', slots: nightSlots })
+        } catch (err) {
+          console.error(`Night outfit failed for ${day.date}:`, err)
+        }
+      }
+
+      // Save whatever succeeded for this day
+      updatedDays[i] = {
+        ...day,
+        ...(daySlots ? { day: { outfit_slots: daySlots, notes: dayNotes } } : {}),
+        ...(nightSlots ? { night: { outfit_slots: nightSlots, notes: nightNotes } } : {}),
       }
     }
 
