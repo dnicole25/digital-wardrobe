@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { generateTripOutfit, getTripWeather } from '../lib/claude'
 
 const SLOT_KEYS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
@@ -80,6 +80,129 @@ function computeItemUseCounts(trip) {
 }
 
 const VERSATILITY_THRESHOLD = 2
+
+// Compute packing summary stats
+function computePackingSummary(trip, wardrobeItems) {
+  const uniqueIds = new Set()
+  let outfitCount = 0
+  const uniqueByCategory = {}
+  for (const day of trip.days || []) {
+    for (const time of ['day', 'night']) {
+      if (day.sameAsDay && time === 'night') continue
+      const slots = day[time]?.outfit_slots
+      if (!slots) continue
+      if (!Object.values(slots).some(Boolean)) continue
+      outfitCount++
+      for (const id of Object.values(slots)) {
+        if (id) uniqueIds.add(id)
+      }
+    }
+  }
+  for (const id of uniqueIds) {
+    const item = wardrobeItems.find(i => i.id === id)
+    const cat = item?.category || 'other'
+    uniqueByCategory[cat] = (uniqueByCategory[cat] || 0) + 1
+  }
+  return { uniqueCount: uniqueIds.size, outfitCount, days: (trip.days || []).length, uniqueByCategory }
+}
+
+function PackingSummaryPanel({ trip, wardrobeItems }) {
+  const summary = useMemo(() => computePackingSummary(trip, wardrobeItems), [trip, wardrobeItems])
+  if (summary.outfitCount === 0) return null
+  const breakdown = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory', 'other']
+    .filter(cat => summary.uniqueByCategory[cat] > 0)
+    .map(cat => `${summary.uniqueByCategory[cat]} ${cat}${summary.uniqueByCategory[cat] !== 1 ? 's' : ''}`)
+  return (
+    <div className="packing-summary-panel">
+      <div className="packing-summary-headline">
+        <span className="packing-summary-count">{summary.uniqueCount}</span> items packed for{' '}
+        <span className="packing-summary-count">{summary.outfitCount}</span> outfit{summary.outfitCount !== 1 ? 's' : ''} across{' '}
+        <span className="packing-summary-count">{summary.days}</span> day{summary.days !== 1 ? 's' : ''}
+      </div>
+      {breakdown.length > 0 && (
+        <div className="packing-summary-breakdown">{breakdown.join(' · ')}</div>
+      )}
+    </div>
+  )
+}
+
+// ChecklistView — unique items by category with packing checkboxes
+function ChecklistView({ trip, wardrobeItems }) {
+  const [checked, setChecked] = useState({})
+
+  const { grouped, orderedCats } = useMemo(() => {
+    const uniqueIds = new Set()
+    for (const day of trip.days || []) {
+      for (const time of ['day', 'night']) {
+        if (day.sameAsDay && time === 'night') continue
+        const slots = day[time]?.outfit_slots || {}
+        for (const id of Object.values(slots)) if (id) uniqueIds.add(id)
+      }
+    }
+    const g = {}
+    for (const id of uniqueIds) {
+      const item = wardrobeItems.find(i => i.id === id)
+      const cat = item?.category || 'other'
+      if (!g[cat]) g[cat] = []
+      g[cat].push({ id, item })
+    }
+    const order = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory', 'other']
+    const oc = Object.keys(g).sort((a, b) => {
+      const ai = order.indexOf(a), bi = order.indexOf(b)
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    })
+    return { grouped: g, orderedCats: oc }
+  }, [trip, wardrobeItems])
+
+  const allIds = orderedCats.flatMap(cat => grouped[cat].map(e => e.id))
+  const checkedCount = allIds.filter(id => checked[id]).length
+
+  if (allIds.length === 0) {
+    return (
+      <div className="empty-state" style={{ paddingTop: 40 }}>
+        <h3>No outfits planned yet</h3>
+        <p>Generate outfits for your days to see your packing checklist here.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="checklist-view">
+      <div className="checklist-header">
+        <div className="checklist-progress-track">
+          <div className="checklist-progress-fill" style={{ width: `${(checkedCount / allIds.length) * 100}%` }} />
+        </div>
+        <div className="checklist-progress-label">{checkedCount} of {allIds.length} packed</div>
+      </div>
+      {orderedCats.map(cat => (
+        <div key={cat} className="checklist-group">
+          <div className="checklist-group-header">
+            <span style={{ textTransform: 'capitalize' }}>{cat}s</span>
+            <span className="checklist-group-count">{grouped[cat].length}</span>
+          </div>
+          {grouped[cat].map(({ id, item }) => (
+            <label key={id} className={`checklist-item${checked[id] ? ' checklist-item--done' : ''}`}>
+              <input
+                type="checkbox"
+                className="checklist-checkbox"
+                checked={!!checked[id]}
+                onChange={() => setChecked(prev => ({ ...prev, [id]: !prev[id] }))}
+              />
+              <div className="checklist-thumb">
+                {item?.image_url
+                  ? <img src={item.image_url} alt={item?.name} />
+                  : <div className="checklist-thumb-empty">{item?.name?.slice(0, 2) || '?'}</div>
+                }
+              </div>
+              <div className="checklist-item-name">{item?.name || id}</div>
+              {item?.color && <div className="checklist-item-color">{item.color}</div>}
+            </label>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 // MiniOutfitGrid — small thumbnail grid for a set of outfit slots
 // itemUseCounts: optional map of {id -> count} to show versatility badge
@@ -277,9 +400,6 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
               {weatherIcon(dayWeather.condition)} {dayWeather.temp}°F · {dayWeather.condition}
             </span>
           )}
-          {occasion && (
-            <span className="tag">{occasion}</span>
-          )}
         </div>
         <button
           className={`tag ${day.sameAsDay ? 'active' : ''}`}
@@ -288,6 +408,20 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
         >
           Same day &amp; night
         </button>
+      </div>
+
+      {/* Per-day occasion selector */}
+      <div className="day-occasion-row">
+        {OCCASIONS.map(occ => (
+          <button
+            key={occ}
+            type="button"
+            className={`tag${occasion === occ ? ' active' : ''}`}
+            onClick={() => onUpdateDay(day.date, { ...day, occasion: occ })}
+          >
+            {occ}
+          </button>
+        ))}
       </div>
 
       <div className="trip-day-columns">
@@ -909,6 +1043,9 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
             </div>
           )}
 
+          {/* Packing summary */}
+          <PackingSummaryPanel trip={currentTrip} wardrobeItems={wardrobeItems} />
+
           {/* View toggle */}
           <div className="trip-view-toggle">
             <button
@@ -922,6 +1059,12 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
               onClick={() => setTripView('by-item')}
             >
               By Item
+            </button>
+            <button
+              className={`trip-view-btn${tripView === 'checklist' ? ' active' : ''}`}
+              onClick={() => setTripView('checklist')}
+            >
+              Checklist
             </button>
           </div>
 
@@ -949,6 +1092,14 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
               trip={currentTrip}
               wardrobeItems={wardrobeItems}
               itemUseCounts={itemUseCounts}
+            />
+          )}
+
+          {/* Checklist view */}
+          {tripView === 'checklist' && (
+            <ChecklistView
+              trip={currentTrip}
+              wardrobeItems={wardrobeItems}
             />
           )}
         </>
