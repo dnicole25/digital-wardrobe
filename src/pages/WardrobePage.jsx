@@ -10,7 +10,13 @@ const OCCASIONS = ['all', 'casual', 'work', 'date', 'wedding', 'formal event', '
 const SEASONS = ['all', 'spring', 'summer', 'fall', 'winter']
 const ALL_SLOT_KEYS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
-function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
+function SavedOutfitCard({ outfit, wardrobeItems, onDelete, onUpdate }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editOccasion, setEditOccasion] = useState('')
+  const [editTimeOfDay, setEditTimeOfDay] = useState('day')
+  const [editSlots, setEditSlots] = useState({})
+  const [saving, setSaving] = useState(false)
+
   const slots = outfit.outfit_slots || {}
   const hasDress = !!slots.dress
   const filledSlots = ALL_SLOT_KEYS.filter(slot => {
@@ -18,6 +24,29 @@ function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
     return !!slots[slot]
   })
   const itemById = id => wardrobeItems.find(i => i.id === id)
+
+  function handleStartEdit() {
+    setEditOccasion(outfit.occasion || '')
+    setEditTimeOfDay(outfit.time_of_day || 'day')
+    setEditSlots({ ...outfit.outfit_slots })
+    setIsEditing(true)
+  }
+
+  function handleCancel() {
+    setIsEditing(false)
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await onUpdate(outfit.id, { occasion: editOccasion, time_of_day: editTimeOfDay, outfit_slots: editSlots })
+      setIsEditing(false)
+    } catch (err) {
+      console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="saved-outfit-card fade-in">
@@ -32,37 +61,121 @@ function SavedOutfitCard({ outfit, wardrobeItems, onDelete }) {
             </div>
           )}
         </div>
-        <button
-          className="btn-icon"
-          onClick={() => onDelete(outfit.id)}
-          title="Delete outfit"
-          style={{ color: 'var(--sand)' }}
-        >
-          ✕
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className="btn-icon"
+            style={{ fontSize: 11, color: 'var(--taupe)' }}
+            onClick={isEditing ? handleCancel : handleStartEdit}
+            title={isEditing ? 'Cancel edit' : 'Edit outfit'}
+          >
+            {isEditing ? 'Cancel' : 'Edit'}
+          </button>
+          <button
+            className="btn-icon"
+            onClick={() => onDelete(outfit.id)}
+            title="Delete outfit"
+            style={{ color: 'var(--sand)' }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
-      <div className="saved-outfit-mini-grid">
-        {filledSlots.map(slot => {
-          const item = itemById(slots[slot])
-          return (
-            <div key={slot} className="mini-slot">
-              {item?.image_url ? (
-                <img src={item.image_url} alt={item.name} />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 8, color: 'var(--taupe)', textAlign: 'center', padding: 4 }}>
-                  {item?.name || slot}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      {!isEditing && (
+        <div className="saved-outfit-mini-grid">
+          {filledSlots.map(slot => {
+            const item = itemById(slots[slot])
+            return (
+              <div key={slot} className="mini-slot">
+                {item?.image_url ? (
+                  <img src={item.image_url} alt={item.name} />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 8, color: 'var(--taupe)', textAlign: 'center', padding: 4 }}>
+                    {item?.name || slot}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
-      {outfit.notes && (
+      {!isEditing && outfit.notes && (
         <p style={{ fontFamily: 'Cormorant Garamond', fontStyle: 'italic', fontSize: 14, color: 'var(--taupe)', margin: '8px 0 0', lineHeight: 1.4 }}>
           "{outfit.notes}"
         </p>
+      )}
+
+      {isEditing && (
+        <div className="log-edit-panel">
+          {/* Occasion */}
+          <div className="log-edit-row" style={{ alignItems: 'flex-start' }}>
+            <label className="log-edit-label" style={{ paddingTop: 4 }}>occasion</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, flex: 1 }}>
+              {OCCASIONS.filter(o => o !== 'all').map(occ => (
+                <button
+                  key={occ}
+                  type="button"
+                  className={`tag${editOccasion === occ ? ' active' : ''}`}
+                  onClick={() => setEditOccasion(prev => prev === occ ? '' : occ)}
+                  style={{ fontSize: 10 }}
+                >
+                  {occ}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Day / Night */}
+          <div className="log-edit-row">
+            <label className="log-edit-label">time</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['day', 'night'].map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`tag${editTimeOfDay === t ? ' active' : ''}`}
+                  onClick={() => setEditTimeOfDay(t)}
+                  style={{ fontSize: 10 }}
+                >
+                  {t === 'day' ? '☀ Day' : '☽ Night'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="log-edit-hint" style={{ marginTop: 10 }}>Swap any item — only items in that category are shown.</p>
+
+          {/* Slot dropdowns */}
+          {filledSlots.map(slot => {
+            const options = wardrobeItems.filter(i => (SLOT_CATEGORY_MAP[slot] || [slot]).includes(i.category))
+            return (
+              <div key={slot} className="log-edit-row">
+                <label className="log-edit-label">{slot}</label>
+                <select
+                  className="input-field"
+                  value={editSlots[slot] || ''}
+                  onChange={e => setEditSlots(prev => ({ ...prev, [slot]: e.target.value || null }))}
+                  style={{ flex: 1, fontSize: 12 }}
+                >
+                  <option value="">— remove —</option>
+                  {options.map(item => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
+            )
+          })}
+
+          <button
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+            style={{ width: '100%', marginTop: 10, fontSize: 12 }}
+          >
+            {saving ? <span className="spin">◌</span> : 'Save Changes'}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -304,6 +417,7 @@ export default function WardrobePage({
   onDeleteItem,
   onSaveOutfit,
   onDeleteOutfit,
+  onUpdateSavedOutfit,
   inspirationItems = [],
   outfitLog = [],
   outfitLogReady = false,
@@ -442,6 +556,7 @@ export default function WardrobePage({
                   outfit={outfit}
                   wardrobeItems={items}
                   onDelete={onDeleteOutfit}
+                  onUpdate={onUpdateSavedOutfit}
                 />
               ))}
             </div>

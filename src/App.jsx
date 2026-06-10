@@ -354,6 +354,17 @@ export default function App() {
     showSaved()
   }
 
+  async function updateSavedOutfit(id, updates) {
+    const { data, error } = await supabase
+      .from('saved_outfits')
+      .update(updates)
+      .eq('id', id)
+      .select().single()
+    if (error) throw new Error(error.message)
+    setSavedOutfits(prev => prev.map(o => o.id === id ? data : o))
+    showSaved()
+  }
+
   // --- Trips ---
   async function createTrip(tripData) {
     const { data, error } = await supabase
@@ -614,6 +625,7 @@ export default function App() {
             onDeleteItem={deleteWardrobeItem}
             onSaveOutfit={saveOutfit}
             onDeleteOutfit={deleteOutfit}
+            onUpdateSavedOutfit={updateSavedOutfit}
             inspirationItems={inspirationImages}
             outfitLog={outfitLog}
             outfitLogReady={outfitLogReady}
