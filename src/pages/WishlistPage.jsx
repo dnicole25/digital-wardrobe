@@ -232,14 +232,6 @@ export default function WishlistPage({
         <>
           <div className="page-header">
             <h2 className="section-title">Wishlist</h2>
-            <button
-              className="btn-outline"
-              onClick={() => setShowAddModal(true)}
-              style={{ fontSize: 12 }}
-              title="Add item by uploading a photo"
-            >
-              ↑ Upload Photo
-            </button>
           </div>
 
           {/* Quick URL add strip */}
@@ -265,6 +257,15 @@ export default function WishlistPage({
             {quickError && !quickData && (
               <div style={{ fontSize: 12, color: '#c0392b', marginTop: 6 }}>{quickError}</div>
             )}
+            <div style={{ marginTop: 10 }}>
+              <button
+                className="btn-outline"
+                onClick={() => setShowAddModal(true)}
+                style={{ fontSize: 12 }}
+              >
+                ↑ Upload Photo instead
+              </button>
+            </div>
           </div>
 
           {/* Inline confirm form */}
