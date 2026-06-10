@@ -3,6 +3,7 @@ import ItemCard from '../components/ItemCard'
 import AddItemModal from '../components/AddItemModal'
 import EditItemModal from '../components/EditItemModal'
 import OutfitGenerator from '../components/OutfitGenerator'
+import TripPlanner from '../components/TripPlanner'
 
 const CATEGORIES = ['all', 'top', 'cardigan', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
 const OCCASIONS = ['all', 'casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
@@ -292,6 +293,10 @@ export default function WardrobePage({
   onUpdateLogEntry,
   autoExpireLog,
   onToggleAutoExpire,
+  trips = [],
+  onCreateTrip,
+  onUpdateTrip,
+  onDeleteTrip,
 }) {
   const [subTab, setSubTab] = useState('items')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -323,6 +328,9 @@ export default function WardrobePage({
         </button>
         <button className={`subnav-tab ${subTab === 'log' ? 'active' : ''}`} onClick={() => setSubTab('log')}>
           Weekly Log {outfitLog.length > 0 && `(${outfitLog.length})`}
+        </button>
+        <button className={`subnav-tab ${subTab === 'packing' ? 'active' : ''}`} onClick={() => setSubTab('packing')}>
+          Packing {trips.length > 0 && `(${trips.length})`}
         </button>
       </div>
 
@@ -432,6 +440,19 @@ export default function WardrobePage({
           onUpdateEntry={onUpdateLogEntry}
           autoExpireLog={autoExpireLog}
           onToggleAutoExpire={onToggleAutoExpire}
+        />
+      )}
+
+      {/* Packing view */}
+      {subTab === 'packing' && (
+        <TripPlanner
+          trips={trips}
+          wardrobeItems={items}
+          anchored={anchored}
+          onAnchorToggle={onAnchorToggle}
+          onCreateTrip={onCreateTrip}
+          onUpdateTrip={onUpdateTrip}
+          onDeleteTrip={onDeleteTrip}
         />
       )}
 

@@ -1722,6 +1722,105 @@ select.input-field {
 .w-full { width: 100%; }
 
 /* ============================================================
+   TRIP PLANNER
+   ============================================================ */
+
+/* Weather overview: horizontally scrollable row of weather badges */
+.trip-weather-overview {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 0 16px;
+  margin-bottom: 16px;
+  scrollbar-width: thin;
+}
+
+.trip-weather-badge {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  min-width: 72px;
+  transition: border-color 0.15s;
+}
+.trip-weather-badge:hover { border-color: var(--sand); }
+
+/* Individual day cards */
+.trip-day-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Day card header: date + weather + occasion row */
+.trip-day-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* Two-column day/night grid */
+.trip-day-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Column label row (☀ Day / ☽ Night) with action buttons */
+.trip-day-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+/* Italic notes under an outfit thumbnail */
+.trip-outfit-notes {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--taupe);
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+/* Inline slot editor panel */
+.trip-slot-editor {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Thin progress bar shown during "Generate All Days" */
+.trip-progress-bar {
+  height: 3px;
+  background: var(--ivory);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.trip-progress-fill {
+  height: 100%;
+  background: linear-gradient(to right, var(--gold), var(--sand));
+  transition: width 0.4s ease;
+  border-radius: 2px;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 768px) {
@@ -1731,6 +1830,7 @@ select.input-field {
   .outfit-grid { grid-template-columns: repeat(2, 1fr); }
   .form-row { grid-template-columns: 1fr 1fr; }
   .day-outfit-columns { grid-template-columns: 1fr; }
+  .trip-day-columns { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {

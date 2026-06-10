@@ -308,36 +308,235 @@ Return JSON only as an array: [{ "name": "", "brand": "", "description": "", "pr
   return Array.isArray(result) ? result : result.items || []
 }
 
-async function generateTripOutfit({ destination, date, timeOfDay, items, usedIds }) {
-  const usedStr = usedIds?.length
-    ? `Already used on this trip (prefer reuse for mix-and-match): ${usedIds.join(', ')}`
-    : 'No items used yet on this trip.'
+async function generateTripOutfit({ items, anchored, packingList, weather, occasion, timeOfDay, date, destination, season }) {
+  const anchoredList = anchored?.length
+    ? `ANCHORED ITEMS — MUST be included (place in their appropriate slots): ${anchored.join(', ')}`
+    : 'No anchored items.'
 
-  const varietyNote = `VARIETY: For slots not covered by already-used items, deliberately choose from across the full range of qualifying wardrobe pieces — do not default to the same items for every outfit. Explore different combinations that still work with the reused pieces.`
+  const packingStr = packingList?.length
+    ? `PACKING LIST — items already selected for other days of this trip (prefer reusing these for efficient packing, but create a fresh-looking outfit by pairing differently):\n${packingList.join(', ')}`
+    : 'No items packed yet for this trip.'
+
+  const varietyNote = `VARIETY: This wardrobe contains many items. Do not habitually default to the same pieces every time. For each slot, consider all qualifying items and deliberately choose from across the full range — including less-obvious picks, different colors, and combinations you have not suggested before. Avoid safe defaults; aim for a fresh, well-considered outfit.`
+
+  const timeLabel = timeOfDay === 'night' ? 'evening/night' : 'daytime'
+  const weatherStr = weather
+    ? `Temperature: ${weather.temp}°F (feels like ${weather.feels_like}°F), Conditions: ${weather.condition}. ${weather.recommendation || ''}`
+    : 'Weather: unknown'
+
+  const occasionNote = occasion
+    ? `Occasion: ${occasion}. ONLY select items whose occasions array includes "${occasion}" OR whose occasions array is empty (occasion-neutral). MUST NOT select any item whose occasions array is non-empty and does not contain "${occasion}".`
+    : ''
+
+  const seasonNote = season
+    ? `Season: ${season}. ONLY select items whose seasons array includes "${season}" OR whose seasons array is empty (season-neutral pieces). Do NOT use any item whose seasons array is non-empty and does not contain "${season}".`
+    : ''
+
+  const timeNote = timeOfDay === 'night'
+    ? 'It is evening/night — temperatures will be cooler than the daytime high. Choose items suited for evening wear and account for the lower nighttime temperature.'
+    : 'It is daytime — choose items suited for the daytime temperature and conditions, including sun protection if it is sunny.'
 
   const text = await callAnthropic([{
     role: 'user',
-    content: `You are a fashion stylist for a trip to ${destination}. Date: ${date}, Time: ${timeOfDay}.
-Wardrobe: ${JSON.stringify(items)}
-${usedStr}
+    content: `You are a fashion stylist creating a packing plan for a trip to ${destination}.
+Date: ${date || 'unspecified'}, Time: ${timeLabel}
+${weatherStr}
+${occasionNote}
+${seasonNote}
+${timeNote}
+
+${packingStr}
+
+Available wardrobe items:
+${JSON.stringify(items)}
+${anchoredList}
 ${varietyNote}
 
 MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
 
-RULE 1 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel) may pair with any color.
-RULE 2 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be solid or a clearly different subtle pattern. MUST pick up a color from the pattern for coordinating solids.
-RULE 3 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual and very formal items.
-RULE 4 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
-RULE 5 — FINAL CHECK: Before returning, verify every item against every other. Replace any item that violates Rules 1–4.
+RULE 1 — WEATHER: MUST select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the current temperature'} and ${weather?.condition || 'the conditions'}. If rainy or snowy, MUST include outerwear and practical footwear. If sunny and warm, MUST use lighter fabrics.
+RULE 2 — OCCASION: MUST NOT include any item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}". ONLY items whose occasions array includes the occasion, or whose occasions array is empty, are permitted.
+RULE 3 — SEASON: MUST NOT include any item whose seasons array is non-empty and does not contain "${season || 'the current season'}". ONLY items whose seasons array includes the season, or whose seasons array is empty, are permitted.
+RULE 4 — PACKING EFFICIENCY: Items already in the packing list SHOULD be reused where they fit the weather, occasion, and season. When reusing, pair with different complementary pieces to create a distinct look. Do not duplicate an entire outfit.
+RULE 5 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
+RULE 6 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
+RULE 7 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
+RULE 8 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
+RULE 9 — ANCHORED ITEMS: If anchored items are listed above, MUST include them in their appropriate slots.
+RULE 10 — FINAL CHECK: Before returning, verify every selected item against every other item. If any item violates Rules 5–8, replace it. Do not return an outfit that fails any rule.
 
-Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "brief styling note" }
+Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Structure rules (also mandatory):
-- MUST use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null.
+- MUST use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null. If top or bottom is set, dress must be null.
 - Cardigan: if paired with a top, the top MUST be a tank or sleeveless style. If paired with a dress, top and bottom MUST be null.
-- MUST only populate slots that genuinely contribute to the outfit. Set unused slots to null.
-- MUST only use IDs from the provided items list.`
+- MUST only populate slots that genuinely contribute to the outfit. Set slots to null when not needed.
+- MUST only use IDs from the provided list.`
   }])
   return parseJSON(text)
+}
+
+// ── Bulk trip weather fetch via Open-Meteo ─────────────────────────────────
+
+async function getTripWeatherFromClaude({ destination, startDate, endDate }) {
+  const dates = []
+  const current = new Date(startDate + 'T00:00:00')
+  const end = new Date(endDate + 'T00:00:00')
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0])
+    current.setDate(current.getDate() + 1)
+  }
+
+  const text = await callAnthropic([{
+    role: 'user',
+    content: `What is the typical weather in ${destination} from ${startDate} to ${endDate}?
+Return a JSON object with one key per date. Each date key maps to an object with "day" and "night" sub-objects.
+Format: { "${startDate}": { "day": { "temp": number, "feels_like": number, "condition": string, "season": string, "recommendation": string }, "night": { "temp": number, "feels_like": number, "condition": string, "season": string, "recommendation": string } }, ... }
+List every date from ${startDate} to ${endDate} inclusive.
+- temp/feels_like: typical temperature in °F
+- condition: e.g. Sunny, Partly Cloudy, Rainy, Snowy
+- season: meteorological season for ${destination} at this time of year
+- recommendation: one short phrase about what to wear`
+  }])
+  const result = parseJSON(text)
+
+  // Ensure all dates are present, fill nulls for any missing
+  const out = {}
+  for (const d of dates) {
+    out[d] = result[d] || null
+  }
+  return out
+}
+
+async function getTripWeather({ destination, startDate, endDate }) {
+  // 1. Geocode destination
+  let lat, lon
+  try {
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=en&format=json`
+    )
+    const geo = await geoRes.json()
+    if (!geo.results?.length) throw new Error('Location not found')
+    lat = geo.results[0].latitude
+    lon = geo.results[0].longitude
+  } catch {
+    // Geocoding failed — fall back to Claude for all days
+    return getTripWeatherFromClaude({ destination, startDate, endDate })
+  }
+
+  // 2. Determine date range coverage
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const startDaysOut = Math.floor((new Date(startDate + 'T00:00:00') - today) / 86400000)
+
+  // If entire range is beyond 16 days, fall back to Claude
+  if (startDaysOut > 16) {
+    return getTripWeatherFromClaude({ destination, startDate, endDate })
+  }
+
+  // Collect all dates in the range
+  const allDates = []
+  const cur = new Date(startDate + 'T00:00:00')
+  const endD = new Date(endDate + 'T00:00:00')
+  while (cur <= endD) {
+    allDates.push(cur.toISOString().split('T')[0])
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  // Split: dates within Open-Meteo range vs beyond
+  const inRangeDates = allDates.filter(d => {
+    const daysOut = Math.floor((new Date(d + 'T00:00:00') - today) / 86400000)
+    return daysOut <= 16
+  })
+  const outOfRangeDates = allDates.filter(d => {
+    const daysOut = Math.floor((new Date(d + 'T00:00:00') - today) / 86400000)
+    return daysOut > 16
+  })
+
+  // 3. Fetch Open-Meteo data for in-range dates in a single call
+  const result = {}
+
+  if (inRangeDates.length > 0) {
+    const firstDate = inRangeDates[0]
+    const lastDate = inRangeDates[inRangeDates.length - 1]
+
+    // Historical vs forecast
+    const firstDaysOut = Math.floor((new Date(firstDate + 'T00:00:00') - today) / 86400000)
+    const baseUrl = firstDaysOut >= 0
+      ? 'https://api.open-meteo.com/v1/forecast'
+      : 'https://archive-api.open-meteo.com/v1/era5'
+
+    try {
+      const params = new URLSearchParams({
+        latitude: lat, longitude: lon,
+        daily: 'temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weathercode',
+        temperature_unit: 'fahrenheit',
+        timezone: 'auto',
+        start_date: firstDate,
+        end_date: lastDate,
+      })
+
+      const res = await fetch(`${baseUrl}?${params}`)
+      if (!res.ok) throw new Error(`Open-Meteo error ${res.status}`)
+      const data = await res.json()
+      const d = data.daily
+
+      if (d?.time) {
+        for (let i = 0; i < d.time.length; i++) {
+          const dateStr = d.time[i]
+          const dayTemp = Math.round(d.temperature_2m_max?.[i] ?? 70)
+          const nightTemp = Math.round(d.temperature_2m_min?.[i] ?? 60)
+          const dayFeels = Math.round(d.apparent_temperature_max?.[i] ?? dayTemp)
+          const nightFeels = Math.round(d.apparent_temperature_min?.[i] ?? nightTemp)
+          const condition = wmoToCondition(d.weathercode?.[i] ?? 0)
+          const season = getSeason(dateStr, lat)
+
+          result[dateStr] = {
+            day: {
+              temp: dayTemp,
+              feels_like: dayFeels,
+              condition,
+              season,
+              recommendation: weatherRecommendation(condition, dayTemp, 'day'),
+            },
+            night: {
+              temp: nightTemp,
+              feels_like: nightFeels,
+              condition,
+              season,
+              recommendation: weatherRecommendation(condition, nightTemp, 'night'),
+            },
+          }
+        }
+      }
+    } catch {
+      // If Open-Meteo fails, fall back to Claude for all
+      return getTripWeatherFromClaude({ destination, startDate, endDate })
+    }
+  }
+
+  // 4. For out-of-range dates, use Claude seasonal estimate
+  if (outOfRangeDates.length > 0) {
+    try {
+      const claudeResult = await getTripWeatherFromClaude({
+        destination,
+        startDate: outOfRangeDates[0],
+        endDate: outOfRangeDates[outOfRangeDates.length - 1],
+      })
+      Object.assign(result, claudeResult)
+    } catch {
+      // Gracefully fill nulls
+      for (const d of outOfRangeDates) {
+        result[d] = null
+      }
+    }
+  }
+
+  // 5. Ensure all dates have entries (fill nulls for any gaps)
+  for (const d of allDates) {
+    if (!result[d]) result[d] = null
+  }
+
+  return result
 }
 
 async function generateWishlistOutfit({ anchoredItems, wardrobeItems, occasion, timeOfDay, excludeIds }) {
@@ -396,7 +595,7 @@ Structure rules (also mandatory):
   return parseJSON(text)
 }
 
-const handlers = { parseUrl, analyzeImage, generateOutfit, getWeather, findSimilar, generateTripOutfit, generateWishlistOutfit }
+const handlers = { parseUrl, analyzeImage, generateOutfit, getWeather, findSimilar, generateTripOutfit, getTripWeather, generateWishlistOutfit }
 
 export default async function handler(req, res) {
   // Health check

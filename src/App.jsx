@@ -3,7 +3,6 @@ import { supabase } from './lib/supabase'
 import { uploadFile, uploadBase64 } from './lib/storage'
 import WardrobePage from './pages/WardrobePage'
 import WishlistPage from './pages/WishlistPage'
-import PackingPage from './pages/PackingPage'
 import InspirationPage from './pages/InspirationPage'
 
 // SVG icons for nav tabs
@@ -15,12 +14,6 @@ const HangerIcon = () => (
 const HeartIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-  </svg>
-)
-const LuggageIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-    <rect x="4" y="8" width="16" height="13" rx="2" />
-    <path d="M8 8V6a4 4 0 0 1 8 0v2M12 12v4" />
   </svg>
 )
 const SparkleIcon = () => (
@@ -118,7 +111,6 @@ function AnchoredBar({ anchored, wardrobeItems, onAnchorToggle, onClearAll }) {
 const NAV_TABS = [
   { key: 'wardrobe', label: 'Wardrobe', icon: <HangerIcon /> },
   { key: 'wishlist', label: 'Wishlist', icon: <HeartIcon /> },
-  { key: 'packing', label: 'Packing', icon: <LuggageIcon /> },
   { key: 'inspiration', label: 'Inspiration', icon: <SparkleIcon /> },
 ]
 
@@ -631,6 +623,10 @@ export default function App() {
             onUpdateLogEntry={updateOutfitLogEntry}
             autoExpireLog={autoExpireLog}
             onToggleAutoExpire={toggleAutoExpireLog}
+            trips={trips}
+            onCreateTrip={createTrip}
+            onUpdateTrip={updateTrip}
+            onDeleteTrip={deleteTrip}
           />
         )}
         {activeTab === 'wishlist' && (
@@ -643,17 +639,6 @@ export default function App() {
             onEditItem={editWishlistItem}
             onDeleteItem={deleteWishlistItem}
             onMoveToWardrobe={moveToWardrobe}
-          />
-        )}
-        {activeTab === 'packing' && (
-          <PackingPage
-            trips={trips}
-            wardrobeItems={wardrobeItems}
-            anchored={anchored}
-            onAnchorToggle={handleAnchorToggle}
-            onCreateTrip={createTrip}
-            onUpdateTrip={updateTrip}
-            onDeleteTrip={deleteTrip}
           />
         )}
         {activeTab === 'inspiration' && (

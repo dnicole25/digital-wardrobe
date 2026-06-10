@@ -93,3 +93,7 @@ create policy "Users own outfit log" on outfit_log for all using (auth.uid() = u
 -- Storage bucket (run separately or via Supabase dashboard)
 -- Create a public bucket called 'wardrobe-images'
 -- Add storage policy: allow authenticated users to upload to their own folder
+
+-- Optional: if you want a dedicated occasion column on trips
+-- (occasion is currently stored per-day inside the days jsonb, so this column is not strictly required)
+-- ALTER TABLE trips ADD COLUMN IF NOT EXISTS occasion text;

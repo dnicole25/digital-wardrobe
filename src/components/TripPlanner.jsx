@@ -1,0 +1,820 @@
+import { useState } from 'react'
+import { generateTripOutfit, getTripWeather } from '../lib/claude'
+
+const SLOT_KEYS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
+
+const SLOT_CATEGORY_MAP = {
+  dress: ['dress'],
+  top: ['top'],
+  cardigan: ['cardigan'],
+  bottom: ['bottom'],
+  outerwear: ['outerwear'],
+  shoes: ['shoes'],
+  bag: ['bag'],
+  jewelry: ['jewelry'],
+  belt: ['belt'],
+  accessory: ['accessory', 'sunglasses', 'other'],
+}
+
+const OCCASIONS = ['casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
+
+const MAX_TRIP_DAYS = 30
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
+
+function formatDateShort(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function formatDateRange(start, end) {
+  const s = new Date(start + 'T00:00:00')
+  const e = new Date(end + 'T00:00:00')
+  const sStr = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const eStr = e.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${sStr} – ${eStr}`
+}
+
+function getDatesInRange(start, end) {
+  const dates = []
+  const current = new Date(start + 'T00:00:00')
+  const endDate = new Date(end + 'T00:00:00')
+  while (current <= endDate) {
+    dates.push(current.toISOString().split('T')[0])
+    current.setDate(current.getDate() + 1)
+  }
+  return dates
+}
+
+function weatherIcon(condition) {
+  if (!condition) return '?'
+  const c = condition.toLowerCase()
+  if (c.includes('thunder')) return '⛈'
+  if (c.includes('snow') || c.includes('blizzard')) return '❄'
+  if (c.includes('freezing')) return '🌨'
+  if (c.includes('heavy rain') || c.includes('heavy drizzle')) return '🌧'
+  if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return '🌦'
+  if (c.includes('fog')) return '🌫'
+  if (c.includes('overcast') || c.includes('cloudy')) return '☁'
+  if (c.includes('partly')) return '⛅'
+  if (c.includes('mostly clear')) return '🌤'
+  if (c.includes('sunny') || c.includes('clear')) return '☀'
+  return '🌤'
+}
+
+// MiniOutfitGrid — small thumbnail grid for a set of outfit slots
+function MiniOutfitGrid({ outfitSlots, wardrobeItems }) {
+  const itemById = id => wardrobeItems.find(i => i.id === id)
+  const hasDress = !!outfitSlots?.dress
+  const filledSlots = SLOT_KEYS.filter(slot => {
+    if ((slot === 'top' || slot === 'bottom') && hasDress) return false
+    return !!outfitSlots?.[slot]
+  })
+
+  if (filledSlots.length === 0) return null
+
+  return (
+    <div className="day-mini-grid">
+      {filledSlots.map(slot => {
+        const item = itemById(outfitSlots[slot])
+        return (
+          <div key={slot} className="day-mini-slot" title={`${slot}: ${item?.name || 'unknown'}`}>
+            {item?.image_url ? (
+              <img src={item.image_url} alt={item.name} />
+            ) : (
+              <div className="day-mini-slot-label">{item?.name?.slice(0, 10) || slot}</div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// SlotEditor — inline slot editor panel
+function SlotEditor({ outfitSlots, wardrobeItems, onSave, onCancel }) {
+  const [slots, setSlots] = useState(() => {
+    const initial = {}
+    for (const key of SLOT_KEYS) {
+      initial[key] = outfitSlots?.[key] || ''
+    }
+    return initial
+  })
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const clean = {}
+      for (const key of SLOT_KEYS) {
+        clean[key] = slots[key] || null
+      }
+      await onSave(clean)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="trip-slot-editor">
+      <p style={{ fontSize: 11, color: 'var(--taupe)', margin: '0 0 12px', letterSpacing: '0.04em' }}>
+        Edit outfit slots — only items in each category are shown.
+      </p>
+      {SLOT_KEYS.map(slot => {
+        const categories = SLOT_CATEGORY_MAP[slot] || [slot]
+        const options = wardrobeItems.filter(i => categories.includes(i.category))
+        return (
+          <div key={slot} className="log-edit-row">
+            <label className="log-edit-label">{slot}</label>
+            <select
+              className="input-field"
+              value={slots[slot] || ''}
+              onChange={e => setSlots(prev => ({ ...prev, [slot]: e.target.value || '' }))}
+              style={{ flex: 1, fontSize: 12 }}
+            >
+              <option value="">— remove —</option>
+              {options.map(item => (
+                <option key={item.id} value={item.id}>{item.name} ({item.color})</option>
+              ))}
+            </select>
+          </div>
+        )
+      })}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <button
+          className="btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+          style={{ flex: 1, fontSize: 11 }}
+        >
+          {saving ? <span className="spin">◌</span> : 'Save Changes'}
+        </button>
+        <button
+          className="btn-outline"
+          onClick={onCancel}
+          style={{ flex: 1, fontSize: 11 }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// DayCard — one day's day+night outfit management
+function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay }) {
+  const [generatingDay, setGeneratingDay] = useState(false)
+  const [generatingNight, setGeneratingNight] = useState(false)
+  const [editingDay, setEditingDay] = useState(false)
+  const [editingNight, setEditingNight] = useState(false)
+
+  const dayWeather = day.weather?.day || null
+  const nightWeather = day.weather?.night || null
+  const occasion = day.occasion || ''
+
+  async function generateForTime(time) {
+    const setter = time === 'day' ? setGeneratingDay : setGeneratingNight
+    setter(true)
+    try {
+      const simplified = wardrobeItems.map(({ id, name, category, color, occasions, seasons }) => ({
+        id, name, category, color, occasions, seasons
+      }))
+      const weather = time === 'day' ? dayWeather : nightWeather
+      const season = weather?.season || ''
+      const result = await generateTripOutfit({
+        items: simplified,
+        anchored: anchored ? [...anchored] : [],
+        packingList: packingList || [],
+        weather,
+        occasion,
+        timeOfDay: time,
+        date: day.date,
+        destination: trip.destination,
+        season,
+      })
+      const slots = {
+        dress: result.dress || null,
+        top: result.top || null,
+        cardigan: result.cardigan || null,
+        bottom: result.bottom || null,
+        outerwear: result.outerwear || null,
+        shoes: result.shoes || null,
+        bag: result.bag || null,
+        jewelry: result.jewelry || null,
+        belt: result.belt || null,
+        accessory: result.accessory || null,
+      }
+      const notes = result.notes || ''
+
+      const updatedDay = time === 'day'
+        ? { ...day, day: { outfit_slots: slots, notes } }
+        : { ...day, night: { outfit_slots: slots, notes } }
+      await onUpdateDay(day.date, updatedDay)
+    } catch (err) {
+      console.error('Trip outfit generation failed:', err)
+    } finally {
+      setter(false)
+    }
+  }
+
+  function toggleSameDay() {
+    if (day.sameAsDay) {
+      onUpdateDay(day.date, { ...day, sameAsDay: false })
+    } else {
+      onUpdateDay(day.date, { ...day, sameAsDay: true, night: day.day })
+    }
+  }
+
+  async function handleSaveDayEdit(slots) {
+    await onUpdateDay(day.date, { ...day, day: { outfit_slots: slots, notes: day.day?.notes || '' } })
+    setEditingDay(false)
+  }
+
+  async function handleSaveNightEdit(slots) {
+    await onUpdateDay(day.date, { ...day, night: { outfit_slots: slots, notes: day.night?.notes || '' } })
+    setEditingNight(false)
+  }
+
+  return (
+    <div className="trip-day-card">
+      <div className="trip-day-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span className="day-card-date">{formatDate(day.date)}</span>
+          {dayWeather && (
+            <span style={{ fontSize: 12, color: 'var(--taupe)' }}>
+              {weatherIcon(dayWeather.condition)} {dayWeather.temp}°F · {dayWeather.condition}
+            </span>
+          )}
+          {occasion && (
+            <span className="tag">{occasion}</span>
+          )}
+        </div>
+        <button
+          className={`tag ${day.sameAsDay ? 'active' : ''}`}
+          onClick={toggleSameDay}
+          style={{ cursor: 'pointer', flexShrink: 0 }}
+        >
+          Same day &amp; night
+        </button>
+      </div>
+
+      <div className="trip-day-columns">
+        {/* Day column */}
+        <div>
+          <div className="trip-day-col-header">
+            <div className="day-outfit-label">☀ Day</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {day.day?.outfit_slots && (
+                <button
+                  className="btn-icon"
+                  onClick={() => { setEditingDay(v => !v); setEditingNight(false) }}
+                  title="Edit slots"
+                  style={{ fontSize: 11 }}
+                >
+                  {editingDay ? 'Close' : 'Edit'}
+                </button>
+              )}
+              <button
+                className="btn-icon"
+                onClick={() => generateForTime('day')}
+                disabled={generatingDay}
+                title="Regenerate day outfit"
+                style={{ fontSize: 12 }}
+              >
+                {generatingDay ? <span className="spin">◌</span> : '↻'}
+              </button>
+            </div>
+          </div>
+
+          {day.day?.outfit_slots ? (
+            <>
+              <MiniOutfitGrid outfitSlots={day.day.outfit_slots} wardrobeItems={wardrobeItems} />
+              {day.day.notes && (
+                <p className="trip-outfit-notes">{day.day.notes}</p>
+              )}
+              {editingDay && (
+                <SlotEditor
+                  outfitSlots={day.day.outfit_slots}
+                  wardrobeItems={wardrobeItems}
+                  onSave={handleSaveDayEdit}
+                  onCancel={() => setEditingDay(false)}
+                />
+              )}
+            </>
+          ) : (
+            <button
+              className="btn-outline"
+              style={{ width: '100%', marginTop: 8 }}
+              onClick={() => generateForTime('day')}
+              disabled={generatingDay}
+            >
+              {generatingDay ? <><span className="spin">◌</span> Generating…</> : '✦ Generate Day'}
+            </button>
+          )}
+        </div>
+
+        {/* Night column */}
+        <div>
+          <div className="trip-day-col-header">
+            <div className="day-outfit-label">☽ Night</div>
+            {!day.sameAsDay && (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {day.night?.outfit_slots && (
+                  <button
+                    className="btn-icon"
+                    onClick={() => { setEditingNight(v => !v); setEditingDay(false) }}
+                    title="Edit slots"
+                    style={{ fontSize: 11 }}
+                  >
+                    {editingNight ? 'Close' : 'Edit'}
+                  </button>
+                )}
+                <button
+                  className="btn-icon"
+                  onClick={() => generateForTime('night')}
+                  disabled={generatingNight}
+                  title="Regenerate night outfit"
+                  style={{ fontSize: 12 }}
+                >
+                  {generatingNight ? <span className="spin">◌</span> : '↻'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {day.sameAsDay ? (
+            <div style={{ fontSize: 12, color: 'var(--taupe)', padding: '8px 0', fontStyle: 'italic' }}>
+              Same as day outfit
+            </div>
+          ) : day.night?.outfit_slots ? (
+            <>
+              <MiniOutfitGrid outfitSlots={day.night.outfit_slots} wardrobeItems={wardrobeItems} />
+              {day.night.notes && (
+                <p className="trip-outfit-notes">{day.night.notes}</p>
+              )}
+              {editingNight && (
+                <SlotEditor
+                  outfitSlots={day.night.outfit_slots}
+                  wardrobeItems={wardrobeItems}
+                  onSave={handleSaveNightEdit}
+                  onCancel={() => setEditingNight(false)}
+                />
+              )}
+            </>
+          ) : (
+            <button
+              className="btn-outline"
+              style={{ width: '100%', marginTop: 8 }}
+              onClick={() => generateForTime('night')}
+              disabled={generatingNight}
+            >
+              {generatingNight ? <><span className="spin">◌</span> Generating…</> : '✦ Generate Night'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// NewTripModal — trip creation form
+function NewTripModal({ onClose, onSubmit }) {
+  const [tripName, setTripName] = useState('')
+  const [city, setCity] = useState('')
+  const [country, setCountry] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [occasion, setOccasion] = useState('vacation')
+  const [creating, setCreating] = useState(false)
+  const [fetchingWeather, setFetchingWeather] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!tripName || !city || !startDate || !endDate) return
+    setError('')
+
+    const destination = country ? `${city}, ${country}` : city
+    const dates = getDatesInRange(startDate, endDate)
+
+    if (dates.length > MAX_TRIP_DAYS) {
+      setError(`Trip is too long (${dates.length} days). Maximum is ${MAX_TRIP_DAYS} days.`)
+      return
+    }
+
+    if (dates.length === 0) {
+      setError('End date must be on or after start date.')
+      return
+    }
+
+    setCreating(true)
+    setFetchingWeather(true)
+
+    let weatherByDate = {}
+    try {
+      weatherByDate = await getTripWeather(destination, startDate, endDate)
+    } catch (err) {
+      console.warn('Weather fetch failed, continuing without weather:', err)
+    } finally {
+      setFetchingWeather(false)
+    }
+
+    const days = dates.map(date => ({
+      date,
+      occasion,
+      weather: weatherByDate[date] || null,
+      day: null,
+      night: null,
+      sameAsDay: false,
+    }))
+
+    try {
+      await onSubmit({ name: tripName, destination, start_date: startDate, end_date: endDate, days })
+      onClose()
+    } catch (err) {
+      setError(err.message || 'Failed to create trip.')
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: 22, fontWeight: 300 }}>New Trip</h2>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="label">Trip Name</label>
+              <input
+                type="text"
+                className="input-field"
+                value={tripName}
+                onChange={e => setTripName(e.target.value)}
+                placeholder="e.g. Summer in Europe"
+                required
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label className="label">City</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  placeholder="Paris"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Country</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={country}
+                  onChange={e => setCountry(e.target.value)}
+                  placeholder="France"
+                />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label className="label">Arrival Date</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Departure Date</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="label">Occasion</label>
+              <div className="occasion-tags" style={{ marginBottom: 0 }}>
+                {OCCASIONS.map(occ => (
+                  <button
+                    key={occ}
+                    type="button"
+                    className={`tag ${occasion === occ ? 'active' : ''}`}
+                    onClick={() => setOccasion(occ)}
+                  >
+                    {occ}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {error && (
+              <p style={{ color: '#c0392b', fontSize: 12, marginBottom: 12 }}>{error}</p>
+            )}
+            {startDate && endDate && !error && (() => {
+              const n = getDatesInRange(startDate, endDate).length
+              if (n > MAX_TRIP_DAYS) return null
+              return (
+                <p style={{ fontSize: 11, color: 'var(--taupe)', marginBottom: 12 }}>
+                  {n} day{n !== 1 ? 's' : ''} · Weather will be fetched automatically
+                </p>
+              )
+            })()}
+            <button type="submit" className="btn-gold" disabled={creating}>
+              {fetchingWeather
+                ? <><span className="spin">◌</span> Fetching weather for your trip…</>
+                : creating
+                  ? <><span className="spin">◌</span> Creating…</>
+                  : 'Create Trip'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorToggle, onCreateTrip, onUpdateTrip, onDeleteTrip }) {
+  const [activeTripId, setActiveTripId] = useState(null)
+  const [showNewTripModal, setShowNewTripModal] = useState(false)
+  const [generatingAll, setGeneratingAll] = useState(false)
+  const [generateProgress, setGenerateProgress] = useState({ current: 0, total: 0 })
+
+  const currentTrip = trips.find(t => t.id === activeTripId) || trips[0] || null
+
+  function handleUpdateDay(tripId, date, updatedDay) {
+    const trip = trips.find(t => t.id === tripId)
+    if (!trip) return
+    const days = (trip.days || []).map(d => d.date === date ? updatedDay : d)
+    return onUpdateTrip(tripId, { days })
+  }
+
+  // Collect all item IDs currently in the trip (packing list)
+  function getPackingList(trip) {
+    const ids = new Set()
+    for (const day of trip.days || []) {
+      for (const time of ['day', 'night']) {
+        const slots = day[time]?.outfit_slots || {}
+        for (const id of Object.values(slots)) {
+          if (id) ids.add(id)
+        }
+      }
+    }
+    return [...ids]
+  }
+
+  async function handleGenerateAll() {
+    if (!currentTrip) return
+    setGeneratingAll(true)
+
+    const simplified = wardrobeItems.map(({ id, name, category, color, occasions, seasons }) => ({
+      id, name, category, color, occasions, seasons
+    }))
+
+    const days = currentTrip.days || []
+    const totalSteps = days.length * 2
+    setGenerateProgress({ current: 0, total: totalSteps })
+
+    const updatedDays = [...days]
+    const packingIds = new Set()
+
+    for (let i = 0; i < updatedDays.length; i++) {
+      const day = updatedDays[i]
+      const occasion = day.occasion || ''
+
+      // Day outfit
+      try {
+        const dayWeather = day.weather?.day || null
+        const season = dayWeather?.season || ''
+        setGenerateProgress({ current: i * 2 + 1, total: totalSteps })
+        const dayResult = await generateTripOutfit({
+          items: simplified,
+          anchored: anchored ? [...anchored] : [],
+          packingList: [...packingIds],
+          weather: dayWeather,
+          occasion,
+          timeOfDay: 'day',
+          date: day.date,
+          destination: currentTrip.destination,
+          season,
+        })
+        const daySlots = {
+          dress: dayResult.dress || null,
+          top: dayResult.top || null,
+          cardigan: dayResult.cardigan || null,
+          bottom: dayResult.bottom || null,
+          outerwear: dayResult.outerwear || null,
+          shoes: dayResult.shoes || null,
+          bag: dayResult.bag || null,
+          jewelry: dayResult.jewelry || null,
+          belt: dayResult.belt || null,
+          accessory: dayResult.accessory || null,
+        }
+        Object.values(daySlots).forEach(id => id && packingIds.add(id))
+
+        // Night outfit
+        setGenerateProgress({ current: i * 2 + 2, total: totalSteps })
+        const nightWeather = day.weather?.night || null
+        const nightSeason = nightWeather?.season || season
+        const nightResult = await generateTripOutfit({
+          items: simplified,
+          anchored: anchored ? [...anchored] : [],
+          packingList: [...packingIds],
+          weather: nightWeather,
+          occasion,
+          timeOfDay: 'night',
+          date: day.date,
+          destination: currentTrip.destination,
+          season: nightSeason,
+        })
+        const nightSlots = {
+          dress: nightResult.dress || null,
+          top: nightResult.top || null,
+          cardigan: nightResult.cardigan || null,
+          bottom: nightResult.bottom || null,
+          outerwear: nightResult.outerwear || null,
+          shoes: nightResult.shoes || null,
+          bag: nightResult.bag || null,
+          jewelry: nightResult.jewelry || null,
+          belt: nightResult.belt || null,
+          accessory: nightResult.accessory || null,
+        }
+        Object.values(nightSlots).forEach(id => id && packingIds.add(id))
+
+        updatedDays[i] = {
+          ...day,
+          day: { outfit_slots: daySlots, notes: dayResult.notes || '' },
+          night: { outfit_slots: nightSlots, notes: nightResult.notes || '' },
+        }
+      } catch (err) {
+        console.error(`Generate failed for ${day.date}:`, err)
+      }
+    }
+
+    try {
+      await onUpdateTrip(currentTrip.id, { days: updatedDays })
+    } catch (err) {
+      console.error('Save failed:', err)
+    } finally {
+      setGeneratingAll(false)
+      setGenerateProgress({ current: 0, total: 0 })
+    }
+  }
+
+  // Anchored items for display
+  const anchoredItems = anchored
+    ? [...anchored].map(id => wardrobeItems.find(i => i.id === id)).filter(Boolean)
+    : []
+
+  const tripDayCount = currentTrip ? getDatesInRange(currentTrip.start_date, currentTrip.end_date).length : 0
+  const packingList = currentTrip ? getPackingList(currentTrip) : []
+
+  return (
+    <div>
+      {/* Trip tab bar */}
+      <div className="trip-selector">
+        {trips.map(trip => (
+          <button
+            key={trip.id}
+            className={`trip-tab ${currentTrip?.id === trip.id ? 'active' : ''}`}
+            onClick={() => setActiveTripId(trip.id)}
+          >
+            {trip.name}
+          </button>
+        ))}
+        <button className="trip-tab" onClick={() => setShowNewTripModal(true)}>
+          + New Trip
+        </button>
+      </div>
+
+      {currentTrip ? (
+        <>
+          {/* Active trip header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <h2 className="section-title">{currentTrip.name}</h2>
+              <div style={{ fontSize: 12, color: 'var(--taupe)', marginTop: 4, letterSpacing: '0.06em' }}>
+                {currentTrip.destination} &nbsp;·&nbsp;
+                {formatDateRange(currentTrip.start_date, currentTrip.end_date)} &nbsp;·&nbsp;
+                {currentTrip.days?.[0]?.occasion || '—'} &nbsp;·&nbsp;
+                {tripDayCount} day{tripDayCount !== 1 ? 's' : ''}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                className="btn-gold"
+                style={{ width: 'auto' }}
+                onClick={handleGenerateAll}
+                disabled={generatingAll || wardrobeItems.length === 0}
+              >
+                {generatingAll
+                  ? <><span className="spin">◌</span> <span className="pulse">Generating day {generateProgress.current} of {generateProgress.total}…</span></>
+                  : '✦ Generate All Days'}
+              </button>
+              <button
+                className="btn-outline"
+                onClick={() => {
+                  if (confirm(`Delete "${currentTrip.name}"?`)) {
+                    onDeleteTrip(currentTrip.id)
+                    setActiveTripId(null)
+                  }
+                }}
+              >
+                Delete Trip
+              </button>
+            </div>
+          </div>
+
+          {/* Progress bar during generate all */}
+          {generatingAll && generateProgress.total > 0 && (
+            <div className="trip-progress-bar">
+              <div
+                className="trip-progress-fill"
+                style={{ width: `${(generateProgress.current / generateProgress.total) * 100}%` }}
+              />
+            </div>
+          )}
+
+          {/* Weather overview row */}
+          {currentTrip.days?.some(d => d.weather?.day) && (
+            <div className="trip-weather-overview">
+              {currentTrip.days.map(day => (
+                <div key={day.date} className="trip-weather-badge">
+                  <div style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--taupe)', marginBottom: 2 }}>
+                    {formatDateShort(day.date)}
+                  </div>
+                  <div style={{ fontSize: 18 }}>{weatherIcon(day.weather?.day?.condition)}</div>
+                  <div style={{ fontSize: 13, fontWeight: 400, color: 'var(--black)' }}>
+                    {day.weather?.day?.temp != null ? `${day.weather.day.temp}°` : '—'}
+                  </div>
+                  <div style={{ fontSize: 9, color: 'var(--taupe)', letterSpacing: '0.04em', textAlign: 'center', maxWidth: 80 }}>
+                    {day.weather?.day?.condition || ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Anchored items reminder */}
+          {anchoredItems.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '8px 12px', background: 'var(--ivory)', border: '1px solid var(--border)', borderRadius: 2, marginBottom: 16 }}>
+              <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--taupe)', flexShrink: 0 }}>
+                ⚓ Must include:
+              </span>
+              {anchoredItems.map(item => (
+                <span key={item.id} className="anchored-chip">
+                  {item.name}
+                  <button className="anchored-chip-remove" onClick={() => onAnchorToggle(item.id)} title="Unanchor">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Day cards */}
+          <div className="day-cards">
+            {(currentTrip.days || []).map(day => (
+              <DayCard
+                key={day.date}
+                day={day}
+                trip={currentTrip}
+                wardrobeItems={wardrobeItems}
+                anchored={anchored}
+                packingList={packingList}
+                onUpdateDay={(date, updatedDay) => handleUpdateDay(currentTrip.id, date, updatedDay)}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="empty-state">
+          <h3>No trips yet</h3>
+          <p>Create your first trip to start planning outfits and building your packing list.</p>
+          <button className="btn-primary" onClick={() => setShowNewTripModal(true)}>
+            + New Trip
+          </button>
+        </div>
+      )}
+
+      {showNewTripModal && (
+        <NewTripModal
+          onClose={() => setShowNewTripModal(false)}
+          onSubmit={async (tripData) => {
+            await onCreateTrip(tripData)
+          }}
+        />
+      )}
+    </div>
+  )
+}
