@@ -65,8 +65,25 @@ function weatherIcon(condition) {
   return '🌤'
 }
 
+// Compute item use counts across an entire trip (all days, day+night slots)
+function computeItemUseCounts(trip) {
+  const counts = {}
+  for (const day of trip.days || []) {
+    for (const time of ['day', 'night']) {
+      const slots = day[time]?.outfit_slots || {}
+      for (const id of Object.values(slots)) {
+        if (id) counts[id] = (counts[id] || 0) + 1
+      }
+    }
+  }
+  return counts
+}
+
+const VERSATILITY_THRESHOLD = 2
+
 // MiniOutfitGrid — small thumbnail grid for a set of outfit slots
-function MiniOutfitGrid({ outfitSlots, wardrobeItems }) {
+// itemUseCounts: optional map of {id -> count} to show versatility badge
+function MiniOutfitGrid({ outfitSlots, wardrobeItems, itemUseCounts }) {
   const itemById = id => wardrobeItems.find(i => i.id === id)
   const hasDress = !!outfitSlots?.dress
   const filledSlots = SLOT_KEYS.filter(slot => {
@@ -79,13 +96,25 @@ function MiniOutfitGrid({ outfitSlots, wardrobeItems }) {
   return (
     <div className="day-mini-grid">
       {filledSlots.map(slot => {
-        const item = itemById(outfitSlots[slot])
+        const itemId = outfitSlots[slot]
+        const item = itemById(itemId)
+        const useCount = itemUseCounts && itemId ? (itemUseCounts[itemId] || 0) : 0
+        const isVersatile = useCount >= VERSATILITY_THRESHOLD
         return (
-          <div key={slot} className="day-mini-slot" title={`${slot}: ${item?.name || 'unknown'}`}>
+          <div
+            key={slot}
+            className={`day-mini-slot${isVersatile ? ' versatile' : ''}`}
+            title={`${slot}: ${item?.name || 'unknown'}${isVersatile ? ` · worn ${useCount}×` : ''}`}
+          >
             {item?.image_url ? (
               <img src={item.image_url} alt={item.name} />
             ) : (
               <div className="day-mini-slot-label">{item?.name?.slice(0, 10) || slot}</div>
+            )}
+            {isVersatile && (
+              <div className="day-mini-slot-badge" title={`Worn ${useCount}× across this trip`}>
+                {useCount}×
+              </div>
             )}
           </div>
         )
@@ -165,7 +194,7 @@ function SlotEditor({ outfitSlots, wardrobeItems, onSave, onCancel }) {
 }
 
 // DayCard — one day's day+night outfit management
-function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay }) {
+function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay, itemUseCounts }) {
   const [generatingDay, setGeneratingDay] = useState(false)
   const [generatingNight, setGeneratingNight] = useState(false)
   const [editingDay, setEditingDay] = useState(false)
@@ -291,7 +320,7 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay 
 
           {day.day?.outfit_slots ? (
             <>
-              <MiniOutfitGrid outfitSlots={day.day.outfit_slots} wardrobeItems={wardrobeItems} />
+              <MiniOutfitGrid outfitSlots={day.day.outfit_slots} wardrobeItems={wardrobeItems} itemUseCounts={itemUseCounts} />
               {day.day.notes && (
                 <p className="trip-outfit-notes">{day.day.notes}</p>
               )}
@@ -351,7 +380,7 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay 
             </div>
           ) : day.night?.outfit_slots ? (
             <>
-              <MiniOutfitGrid outfitSlots={day.night.outfit_slots} wardrobeItems={wardrobeItems} />
+              <MiniOutfitGrid outfitSlots={day.night.outfit_slots} wardrobeItems={wardrobeItems} itemUseCounts={itemUseCounts} />
               {day.night.notes && (
                 <p className="trip-outfit-notes">{day.night.notes}</p>
               )}
@@ -546,11 +575,108 @@ function NewTripModal({ onClose, onSubmit }) {
   )
 }
 
+// ByItemView — lists every item used in the trip, highlights versatile ones (2+)
+function ByItemView({ trip, wardrobeItems, itemUseCounts }) {
+  const itemById = id => wardrobeItems.find(i => i.id === id)
+
+  // Collect all used item IDs
+  const allItemIds = new Set()
+  for (const day of trip.days || []) {
+    for (const time of ['day', 'night']) {
+      const slots = day[time]?.outfit_slots || {}
+      for (const id of Object.values(slots)) {
+        if (id) allItemIds.add(id)
+      }
+    }
+  }
+
+  if (allItemIds.size === 0) {
+    return (
+      <div className="empty-state" style={{ paddingTop: 40 }}>
+        <h3>No outfits planned yet</h3>
+        <p>Generate outfits for your days to see a packing summary here.</p>
+      </div>
+    )
+  }
+
+  // Sort: versatile items first, then alphabetically by name
+  const sortedIds = [...allItemIds].sort((a, b) => {
+    const ca = itemUseCounts[a] || 0
+    const cb = itemUseCounts[b] || 0
+    if (cb !== ca) return cb - ca
+    const ia = itemById(a)
+    const ib = itemById(b)
+    return (ia?.name || '').localeCompare(ib?.name || '')
+  })
+
+  // Group by category
+  const byCategory = {}
+  for (const id of sortedIds) {
+    const item = itemById(id)
+    const cat = item?.category || 'other'
+    if (!byCategory[cat]) byCategory[cat] = []
+    byCategory[cat].push(id)
+  }
+
+  const categoryOrder = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory', 'other']
+  const sortedCategories = Object.keys(byCategory).sort((a, b) => {
+    const ai = categoryOrder.indexOf(a)
+    const bi = categoryOrder.indexOf(b)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+
+  return (
+    <div className="trip-by-item-view">
+      <p className="trip-by-item-intro">
+        {sortedIds.length} item{sortedIds.length !== 1 ? 's' : ''} across {trip.days?.length || 0} day{(trip.days?.length || 0) !== 1 ? 's' : ''}.
+        {' '}Items worn 2+ times are highlighted.
+      </p>
+      {sortedCategories.map(cat => (
+        <div key={cat} className="trip-by-item-category">
+          <div className="trip-by-item-cat-label">{cat}</div>
+          <div className="trip-by-item-grid">
+            {byCategory[cat].map(id => {
+              const item = itemById(id)
+              const count = itemUseCounts[id] || 0
+              const isVersatile = count >= VERSATILITY_THRESHOLD
+              return (
+                <div
+                  key={id}
+                  className={`trip-by-item-card${isVersatile ? ' versatile' : ''}`}
+                  title={`${item?.name || 'Unknown'} · worn ${count} time${count !== 1 ? 's' : ''}`}
+                >
+                  <div className="trip-by-item-thumb">
+                    {item?.image_url ? (
+                      <img src={item.image_url} alt={item.name} />
+                    ) : (
+                      <div className="trip-by-item-thumb-label">{item?.name?.slice(0, 12) || '?'}</div>
+                    )}
+                    {isVersatile && (
+                      <div className="trip-by-item-versatile-badge" title={`Worn ${count}× — versatile pick!`}>
+                        ★ {count}×
+                      </div>
+                    )}
+                  </div>
+                  <div className="trip-by-item-name">{item?.name || 'Unknown'}</div>
+                  <div className="trip-by-item-count">
+                    {count}× · {item?.color || ''}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorToggle, onCreateTrip, onUpdateTrip, onDeleteTrip }) {
   const [activeTripId, setActiveTripId] = useState(null)
   const [showNewTripModal, setShowNewTripModal] = useState(false)
   const [generatingAll, setGeneratingAll] = useState(false)
   const [generateProgress, setGenerateProgress] = useState({ current: 0, total: 0 })
+  const [tripView, setTripView] = useState('by-day') // 'by-day' | 'by-item'
 
   const currentTrip = trips.find(t => t.id === activeTripId) || trips[0] || null
 
@@ -680,6 +806,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
 
   const tripDayCount = currentTrip ? getDatesInRange(currentTrip.start_date, currentTrip.end_date).length : 0
   const packingList = currentTrip ? getPackingList(currentTrip) : []
+  const itemUseCounts = currentTrip ? computeItemUseCounts(currentTrip) : {}
 
   return (
     <div>
@@ -782,20 +909,48 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
             </div>
           )}
 
-          {/* Day cards */}
-          <div className="day-cards">
-            {(currentTrip.days || []).map(day => (
-              <DayCard
-                key={day.date}
-                day={day}
-                trip={currentTrip}
-                wardrobeItems={wardrobeItems}
-                anchored={anchored}
-                packingList={packingList}
-                onUpdateDay={(date, updatedDay) => handleUpdateDay(currentTrip.id, date, updatedDay)}
-              />
-            ))}
+          {/* View toggle */}
+          <div className="trip-view-toggle">
+            <button
+              className={`trip-view-btn${tripView === 'by-day' ? ' active' : ''}`}
+              onClick={() => setTripView('by-day')}
+            >
+              By Day
+            </button>
+            <button
+              className={`trip-view-btn${tripView === 'by-item' ? ' active' : ''}`}
+              onClick={() => setTripView('by-item')}
+            >
+              By Item
+            </button>
           </div>
+
+          {/* By Day view — day cards */}
+          {tripView === 'by-day' && (
+            <div className="day-cards">
+              {(currentTrip.days || []).map(day => (
+                <DayCard
+                  key={day.date}
+                  day={day}
+                  trip={currentTrip}
+                  wardrobeItems={wardrobeItems}
+                  anchored={anchored}
+                  packingList={packingList}
+                  onUpdateDay={(date, updatedDay) => handleUpdateDay(currentTrip.id, date, updatedDay)}
+                  itemUseCounts={itemUseCounts}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* By Item view */}
+          {tripView === 'by-item' && (
+            <ByItemView
+              trip={currentTrip}
+              wardrobeItems={wardrobeItems}
+              itemUseCounts={itemUseCounts}
+            />
+          )}
         </>
       ) : (
         <div className="empty-state">
