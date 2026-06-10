@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import ItemCard from '../components/ItemCard'
 import AddItemModal from '../components/AddItemModal'
 import EditItemModal from '../components/EditItemModal'
 import OutfitSlot from '../components/OutfitSlot'
 import { findSimilarItems, generateWishlistOutfit, parseItemFromUrl } from '../lib/claude'
+import { fileToBase64 } from '../lib/storage'
 
 const CATEGORIES = ['all', 'top', 'cardigan', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
 const ITEM_CATEGORIES = ['top', 'cardigan', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
@@ -40,6 +41,8 @@ export default function WishlistPage({
   const [quickError, setQuickError] = useState('')
   const [quickData, setQuickData] = useState(null)
   const [quickSaving, setQuickSaving] = useState(false)
+  const [quickImageFile, setQuickImageFile] = useState(null)
+  const [quickImagePreview, setQuickImagePreview] = useState(null)
 
   // Generate tab
   const [occasion, setOccasion] = useState('casual')
@@ -65,6 +68,29 @@ export default function WishlistPage({
     if (filterSeason !== 'all' && !item.seasons?.includes(filterSeason)) return false
     return true
   })
+
+  async function applyQuickImage(file) {
+    if (!file || !file.type.startsWith('image/')) return
+    setQuickImageFile(file)
+    const b64 = await fileToBase64(file)
+    setQuickImagePreview(b64)
+  }
+
+  // Paste image into the confirm form
+  useEffect(() => {
+    if (!quickData) return
+    async function handlePaste(e) {
+      for (const item of e.clipboardData?.items || []) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) await applyQuickImage(file)
+          break
+        }
+      }
+    }
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [quickData])
 
   async function handleQuickParse() {
     if (!quickUrl.trim()) return
@@ -102,10 +128,12 @@ export default function WishlistPage({
         seasons: quickData.seasons,
         url: quickUrl.trim() || null,
         image_url: null,
-      }, null)
+      }, quickImageFile)
       setQuickUrl('')
       setQuickData(null)
       setQuickError('')
+      setQuickImageFile(null)
+      setQuickImagePreview(null)
     } catch (err) {
       setQuickError(err.message || 'Failed to save.')
     } finally {
@@ -117,6 +145,8 @@ export default function WishlistPage({
     setQuickUrl('')
     setQuickData(null)
     setQuickError('')
+    setQuickImageFile(null)
+    setQuickImagePreview(null)
   }
 
   async function handleFindSimilar(item) {
@@ -248,36 +278,70 @@ export default function WishlistPage({
                 <div style={{ fontSize: 12, color: '#c0392b', marginBottom: 10 }}>{quickError}</div>
               )}
 
-              <div className="form-row" style={{ marginBottom: 12 }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="label">Name</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={quickData.name}
-                    onChange={e => setQuickData(d => ({ ...d, name: e.target.value }))}
-                    placeholder="Item name"
-                  />
+              <div className="quick-add-top-row">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="form-row" style={{ marginBottom: 12 }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="label">Name</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        value={quickData.name}
+                        onChange={e => setQuickData(d => ({ ...d, name: e.target.value }))}
+                        placeholder="Item name"
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="label">Color</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        value={quickData.color}
+                        onChange={e => setQuickData(d => ({ ...d, color: e.target.value }))}
+                        placeholder="e.g. Navy"
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="label">Brand / Store</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        value={quickData.source}
+                        onChange={e => setQuickData(d => ({ ...d, source: e.target.value }))}
+                        placeholder="e.g. Zara"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="label">Color</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={quickData.color}
-                    onChange={e => setQuickData(d => ({ ...d, color: e.target.value }))}
-                    placeholder="e.g. Navy"
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="label">Brand / Store</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={quickData.source}
-                    onChange={e => setQuickData(d => ({ ...d, source: e.target.value }))}
-                    placeholder="e.g. Zara"
-                  />
+
+                {/* Compact photo upload */}
+                <div className="quick-add-photo">
+                  <label className="label" style={{ marginBottom: 4 }}>Photo <span style={{ color: 'var(--taupe)', fontWeight: 300 }}>(optional)</span></label>
+                  {quickImagePreview ? (
+                    <div style={{ position: 'relative', width: 80, height: 100 }}>
+                      <img
+                        src={quickImagePreview}
+                        alt="Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 2, border: '1px solid var(--border)' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setQuickImageFile(null); setQuickImagePreview(null) }}
+                        style={{ position: 'absolute', top: -6, right: -6, background: 'var(--charcoal)', color: 'var(--white)', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                      >×</button>
+                    </div>
+                  ) : (
+                    <label className="quick-add-photo-btn">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={e => { if (e.target.files[0]) applyQuickImage(e.target.files[0]) }}
+                      />
+                      <span style={{ fontSize: 18, display: 'block', marginBottom: 2 }}>↑</span>
+                      <span style={{ fontSize: 10 }}>Browse or ⌘V</span>
+                    </label>
+                  )}
                 </div>
               </div>
 
