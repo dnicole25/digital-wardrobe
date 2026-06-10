@@ -1306,6 +1306,26 @@ select.input-field {
 }
 
 /* ============================================================
+   QUICK URL ADD (Wishlist)
+   ============================================================ */
+.quick-add-strip {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+.quick-add-confirm {
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  background: var(--ivory);
+  border: 1px solid var(--gold-light);
+  border-radius: 2px;
+  animation: fadeIn 0.2s ease;
+}
+
+/* ============================================================
    WEEKLY LOG
    ============================================================ */
 .log-reminder {

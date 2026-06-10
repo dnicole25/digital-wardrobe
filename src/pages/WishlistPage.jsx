@@ -3,12 +3,14 @@ import ItemCard from '../components/ItemCard'
 import AddItemModal from '../components/AddItemModal'
 import EditItemModal from '../components/EditItemModal'
 import OutfitSlot from '../components/OutfitSlot'
-import { findSimilarItems, generateWishlistOutfit } from '../lib/claude'
+import { findSimilarItems, generateWishlistOutfit, parseItemFromUrl } from '../lib/claude'
 
 const CATEGORIES = ['all', 'top', 'cardigan', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
+const ITEM_CATEGORIES = ['top', 'cardigan', 'bottom', 'dress', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'sunglasses', 'accessory', 'activewear', 'swimwear', 'other']
 const OCCASIONS_FILTER = ['all', 'casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
 const OCCASIONS = ['casual', 'work', 'date', 'wedding', 'formal event', 'party', 'vacation']
 const SEASONS = ['all', 'spring', 'summer', 'fall', 'winter']
+const ITEM_SEASONS = ['spring', 'summer', 'fall', 'winter']
 const SLOTS = ['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory']
 
 export default function WishlistPage({
@@ -31,6 +33,13 @@ export default function WishlistPage({
   const [filterSeason, setFilterSeason] = useState('all')
   const [similarLoading, setSimilarLoading] = useState({})
   const [similarResults, setSimilarResults] = useState({})
+
+  // Quick URL add
+  const [quickUrl, setQuickUrl] = useState('')
+  const [quickParsing, setQuickParsing] = useState(false)
+  const [quickError, setQuickError] = useState('')
+  const [quickData, setQuickData] = useState(null)
+  const [quickSaving, setQuickSaving] = useState(false)
 
   // Generate tab
   const [occasion, setOccasion] = useState('casual')
@@ -56,6 +65,59 @@ export default function WishlistPage({
     if (filterSeason !== 'all' && !item.seasons?.includes(filterSeason)) return false
     return true
   })
+
+  async function handleQuickParse() {
+    if (!quickUrl.trim()) return
+    setQuickParsing(true)
+    setQuickError('')
+    setQuickData(null)
+    try {
+      const data = await parseItemFromUrl(quickUrl)
+      setQuickData({
+        name: data.name || '',
+        color: data.color || '',
+        source: data.source || '',
+        category: ITEM_CATEGORIES.includes(data.category) ? data.category : '',
+        occasions: data.occasions?.filter(o => OCCASIONS.includes(o)) || [],
+        seasons: data.seasons?.filter(s => ITEM_SEASONS.includes(s)) || [],
+      })
+    } catch (err) {
+      setQuickError('Could not read that URL — fill in the details manually or try a different link.')
+      setQuickData({ name: '', color: '', source: '', category: '', occasions: [], seasons: [] })
+    } finally {
+      setQuickParsing(false)
+    }
+  }
+
+  async function handleQuickSave() {
+    if (!quickData || !quickData.name.trim() || !quickData.category) return
+    setQuickSaving(true)
+    try {
+      await onAddItem({
+        name: quickData.name.trim(),
+        category: quickData.category,
+        color: quickData.color.trim(),
+        source: quickData.source.trim() || null,
+        occasions: quickData.occasions,
+        seasons: quickData.seasons,
+        url: quickUrl.trim() || null,
+        image_url: null,
+      }, null)
+      setQuickUrl('')
+      setQuickData(null)
+      setQuickError('')
+    } catch (err) {
+      setQuickError(err.message || 'Failed to save.')
+    } finally {
+      setQuickSaving(false)
+    }
+  }
+
+  function handleQuickCancel() {
+    setQuickUrl('')
+    setQuickData(null)
+    setQuickError('')
+  }
 
   async function handleFindSimilar(item) {
     if (similarResults[item.id]) {
@@ -140,8 +202,160 @@ export default function WishlistPage({
         <>
           <div className="page-header">
             <h2 className="section-title">Wishlist</h2>
-            <button className="btn-primary" onClick={() => setShowAddModal(true)}>+ Add Item</button>
+            <button
+              className="btn-outline"
+              onClick={() => setShowAddModal(true)}
+              style={{ fontSize: 12 }}
+              title="Add item by uploading a photo"
+            >
+              ↑ Upload Photo
+            </button>
           </div>
+
+          {/* Quick URL add strip */}
+          <div className="quick-add-strip">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="url"
+                className="input-field"
+                placeholder="Paste a product URL to add to wishlist…"
+                value={quickUrl}
+                onChange={e => setQuickUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !quickParsing && handleQuickParse()}
+              />
+              <button
+                className="btn-primary"
+                onClick={handleQuickParse}
+                disabled={quickParsing || !quickUrl.trim()}
+                style={{ flexShrink: 0 }}
+              >
+                {quickParsing ? <span className="spin">◌</span> : 'Add'}
+              </button>
+            </div>
+            {quickError && !quickData && (
+              <div style={{ fontSize: 12, color: '#c0392b', marginTop: 6 }}>{quickError}</div>
+            )}
+          </div>
+
+          {/* Inline confirm form */}
+          {quickData && (
+            <div className="quick-add-confirm">
+              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--taupe)', marginBottom: 12 }}>
+                Review &amp; Save
+              </div>
+
+              {quickError && (
+                <div style={{ fontSize: 12, color: '#c0392b', marginBottom: 10 }}>{quickError}</div>
+              )}
+
+              <div className="form-row" style={{ marginBottom: 12 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="label">Name</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={quickData.name}
+                    onChange={e => setQuickData(d => ({ ...d, name: e.target.value }))}
+                    placeholder="Item name"
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="label">Color</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={quickData.color}
+                    onChange={e => setQuickData(d => ({ ...d, color: e.target.value }))}
+                    placeholder="e.g. Navy"
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="label">Brand / Store</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={quickData.source}
+                    onChange={e => setQuickData(d => ({ ...d, source: e.target.value }))}
+                    placeholder="e.g. Zara"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="label">Category</label>
+                <div className="tag-grid">
+                  {ITEM_CATEGORIES.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`tag ${quickData.category === c ? 'active' : ''}`}
+                      onClick={() => setQuickData(d => ({ ...d, category: d.category === c ? '' : c }))}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-row" style={{ marginBottom: 14 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="label">Occasion</label>
+                  <div className="tag-grid">
+                    {OCCASIONS.map(o => (
+                      <button
+                        key={o}
+                        type="button"
+                        className={`tag ${quickData.occasions.includes(o) ? 'active' : ''}`}
+                        onClick={() => setQuickData(d => ({
+                          ...d,
+                          occasions: d.occasions.includes(o) ? d.occasions.filter(x => x !== o) : [...d.occasions, o]
+                        }))}
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="label">Season</label>
+                  <div className="tag-grid">
+                    {ITEM_SEASONS.map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        className={`tag ${quickData.seasons.includes(s) ? 'active' : ''}`}
+                        onClick={() => setQuickData(d => ({
+                          ...d,
+                          seasons: d.seasons.includes(s) ? d.seasons.filter(x => x !== s) : [...d.seasons, s]
+                        }))}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn-gold"
+                  onClick={handleQuickSave}
+                  disabled={quickSaving || !quickData.name.trim() || !quickData.category}
+                  style={{ flex: 1 }}
+                >
+                  {quickSaving ? <span className="spin">◌</span> : '+ Add to Wishlist'}
+                </button>
+                <button className="btn-outline" onClick={handleQuickCancel} style={{ flexShrink: 0 }}>
+                  Cancel
+                </button>
+              </div>
+              {(!quickData.name.trim() || !quickData.category) && (
+                <div style={{ fontSize: 11, color: 'var(--taupe)', marginTop: 6 }}>
+                  Name and category are required to save.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="filter-bar">
             <select className="input-field" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
@@ -158,8 +372,7 @@ export default function WishlistPage({
           {filtered.length === 0 ? (
             <div className="empty-state">
               <h3>Your wishlist is empty</h3>
-              <p>Save items you love to your wishlist.</p>
-              <button className="btn-primary" onClick={() => setShowAddModal(true)}>+ Add Item</button>
+              <p>Paste a product URL above, or upload a photo to get started.</p>
             </div>
           ) : (
             <div className="item-grid">

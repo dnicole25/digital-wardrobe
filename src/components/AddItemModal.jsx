@@ -13,7 +13,7 @@ const XIcon = () => (
 )
 
 export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
-  const [inputMode, setInputMode] = useState('upload')
+  const [inputMode, setInputMode] = useState(mode === 'wishlist' ? 'url' : 'upload')
   const [imagePreview, setImagePreview] = useState(null)
   const [imageFile, setImageFile] = useState(null)
   const [dragOver, setDragOver] = useState(false)
@@ -164,44 +164,6 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
             >Upload Photo</button>
           </div>
 
-          {/* Image Zone */}
-          {imagePreview ? (
-            <div className="image-preview">
-              <img src={imagePreview} alt="Preview" />
-              <button
-                className="image-preview-clear"
-                onClick={() => { setImagePreview(null); setImageFile(null) }}
-              >×</button>
-            </div>
-          ) : (
-            <div
-              ref={dropRef}
-              className={`image-dropzone ${dragOver ? 'drag-over' : ''}`}
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-            >
-              <input
-                type="file"
-                accept="image/*"
-                onChange={e => { if (e.target.files[0]) applyImageFile(e.target.files[0]) }}
-              />
-              <div className="dropzone-text">Drop image here or click to browse</div>
-              <div className="dropzone-hint">Also try ⌘V to paste from clipboard</div>
-            </div>
-          )}
-
-          {imagePreview && (
-            <button
-              className="btn-outline"
-              style={{ width: '100%', marginBottom: 16 }}
-              onClick={handleAnalyzeImage}
-              disabled={analyzing}
-            >
-              {analyzing ? <><span className="spin">◌</span> Analyzing…</> : '✦ Auto-categorize from photo'}
-            </button>
-          )}
-
           {/* URL input (url mode) */}
           {inputMode === 'url' && (
             <div className="form-group">
@@ -216,7 +178,7 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
                   onKeyDown={e => e.key === 'Enter' && handleParseUrl()}
                 />
                 <button
-                  className="btn-outline"
+                  className="btn-primary"
                   onClick={handleParseUrl}
                   disabled={parsing || !urlInput.trim()}
                   style={{ flexShrink: 0 }}
@@ -234,6 +196,47 @@ export default function AddItemModal({ onClose, onAdd, mode = 'wardrobe' }) {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Image Zone (upload mode only) */}
+          {inputMode === 'upload' && (
+            <>
+              {imagePreview ? (
+                <div className="image-preview">
+                  <img src={imagePreview} alt="Preview" />
+                  <button
+                    className="image-preview-clear"
+                    onClick={() => { setImagePreview(null); setImageFile(null) }}
+                  >×</button>
+                </div>
+              ) : (
+                <div
+                  ref={dropRef}
+                  className={`image-dropzone ${dragOver ? 'drag-over' : ''}`}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => { if (e.target.files[0]) applyImageFile(e.target.files[0]) }}
+                  />
+                  <div className="dropzone-text">Drop image here or click to browse</div>
+                  <div className="dropzone-hint">Also try ⌘V to paste from clipboard</div>
+                </div>
+              )}
+              {imagePreview && (
+                <button
+                  className="btn-outline"
+                  style={{ width: '100%', marginBottom: 16 }}
+                  onClick={handleAnalyzeImage}
+                  disabled={analyzing}
+                >
+                  {analyzing ? <><span className="spin">◌</span> Analyzing…</> : '✦ Auto-categorize from photo'}
+                </button>
+              )}
+            </>
           )}
 
           <form onSubmit={handleSubmit}>
