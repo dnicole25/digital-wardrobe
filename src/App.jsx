@@ -29,6 +29,69 @@ const SparkleIcon = () => (
   </svg>
 )
 
+const ChevronIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 3.5l3 3 3-3" />
+  </svg>
+)
+
+function NavDropdown({ tabs, activeTab, onSelect, onLogout }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const activeTabData = tabs.find(t => t.key === activeTab)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  return (
+    <nav className="header-nav" ref={ref}>
+      <div className="nav-dropdown">
+        <button
+          className="nav-dropdown-trigger"
+          onClick={() => setOpen(o => !o)}
+          aria-haspopup="true"
+          aria-expanded={open}
+        >
+          {activeTabData?.icon}
+          <span>{activeTabData?.label}</span>
+          <span className={`nav-chevron ${open ? 'open' : ''}`}><ChevronIcon /></span>
+        </button>
+
+        {open && (
+          <div className="nav-dropdown-menu">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                className={`nav-dropdown-item ${tab.key === activeTab ? 'active' : ''}`}
+                onClick={() => { onSelect(tab.key); setOpen(false) }}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                {tab.key === activeTab && <span className="nav-dropdown-check">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        className="btn-icon"
+        onClick={onLogout}
+        title="Sign out"
+        style={{ marginLeft: 8, color: 'var(--sand)' }}
+      >
+        ⎋
+      </button>
+    </nav>
+  )
+}
+
 function AnchoredBar({ anchored, wardrobeItems, onAnchorToggle, onClearAll }) {
   const anchoredItems = [...anchored]
     .map(id => wardrobeItems.find(i => i.id === id))
@@ -529,25 +592,12 @@ export default function App() {
             )}
           </div>
 
-          <nav className="header-nav">
-            {NAV_TABS.map(tab => (
-              <button
-                key={tab.key}
-                className={`nav-tab ${activeTab === tab.key ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
-            <button
-              className="btn-icon"
-              onClick={handleLogout}
-              title="Sign out"
-              style={{ marginLeft: 8, color: 'var(--sand)' }}
-            >
-              ⎋
-            </button>
-          </nav>
+          <NavDropdown
+            tabs={NAV_TABS}
+            activeTab={activeTab}
+            onSelect={setActiveTab}
+            onLogout={handleLogout}
+          />
         </div>
       </header>
 
