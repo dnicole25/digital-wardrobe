@@ -78,6 +78,7 @@ function WeeklyLogTab({ outfitLog, outfitLogReady, wardrobeItems, onDeleteEntry,
   const [clearing, setClearing] = useState(false)
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [editSlots, setEditSlots] = useState({})
+  const [editOccasion, setEditOccasion] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
 
   async function handleClearAll() {
@@ -89,19 +90,22 @@ function WeeklyLogTab({ outfitLog, outfitLogReady, wardrobeItems, onDeleteEntry,
   function handleStartEdit(entry) {
     setEditingEntryId(entry.id)
     setEditSlots({ ...entry.outfit_slots })
+    setEditOccasion(entry.occasion || '')
   }
 
   function handleCancelEdit() {
     setEditingEntryId(null)
     setEditSlots({})
+    setEditOccasion('')
   }
 
   async function handleSaveEdit(entryId) {
     setSavingEdit(true)
     try {
-      await onUpdateEntry(entryId, { outfit_slots: editSlots })
+      await onUpdateEntry(entryId, { outfit_slots: editSlots, occasion: editOccasion })
       setEditingEntryId(null)
       setEditSlots({})
+      setEditOccasion('')
     } catch (err) {
       console.error('Edit save failed:', err)
     } finally {
@@ -231,7 +235,23 @@ function WeeklyLogTab({ outfitLog, outfitLogReady, wardrobeItems, onDeleteEntry,
                       {/* Edit panel */}
                       {isEditing && (
                         <div className="log-edit-panel">
-                          <p className="log-edit-hint">Swap any item — only items in that category are shown.</p>
+                          <div className="log-edit-row" style={{ alignItems: 'flex-start' }}>
+                            <label className="log-edit-label" style={{ paddingTop: 4 }}>occasion</label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, flex: 1 }}>
+                              {OCCASIONS.filter(o => o !== 'all').map(occ => (
+                                <button
+                                  key={occ}
+                                  type="button"
+                                  className={`tag${editOccasion === occ ? ' active' : ''}`}
+                                  onClick={() => setEditOccasion(prev => prev === occ ? '' : occ)}
+                                  style={{ fontSize: 10 }}
+                                >
+                                  {occ}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="log-edit-hint" style={{ marginTop: 10 }}>Swap any item — only items in that category are shown.</p>
                           {filledSlots.map(slot => {
                             const slotCategories = SLOT_CATEGORY_MAP[slot] || [slot]
                             const options = wardrobeItems.filter(i => slotCategories.includes(i.category))
