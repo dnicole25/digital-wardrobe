@@ -2004,6 +2004,342 @@ select.input-field {
 }
 
 /* ============================================================
+   PACKING SUMMARY PANEL
+   ============================================================ */
+.packing-summary-panel {
+  padding: 14px 18px;
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  margin-bottom: 20px;
+  animation: fadeIn 0.25s ease;
+}
+
+.packing-summary-headline {
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  color: var(--charcoal);
+  letter-spacing: 0.02em;
+}
+
+.packing-summary-count {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--black);
+}
+
+.packing-summary-sep {
+  color: var(--sand);
+  margin: 0 2px;
+}
+
+.packing-summary-breakdown {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--taupe);
+  letter-spacing: 0.06em;
+}
+
+/* ============================================================
+   PER-DAY OCCASION ROW
+   ============================================================ */
+.day-occasion-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.day-occasion-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  padding-top: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.day-occasion-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* Subtle indicator for trip-default inherited occasion */
+.tag--default-hint {
+  outline: 1px dashed var(--sand);
+  outline-offset: 1px;
+}
+
+/* ============================================================
+   MINI SLOT USAGE BADGE + MUTED STATE
+   ============================================================ */
+.day-mini-slot--muted {
+  opacity: 0.6;
+}
+
+.day-mini-usage-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(44, 44, 44, 0.75);
+  color: var(--white);
+  font-size: 7px;
+  font-family: 'Jost', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 1px 3px;
+  border-radius: 1px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+
+.day-mini-usage-badge--star {
+  background: var(--gold);
+}
+
+/* ============================================================
+   BY ITEM VIEW
+   ============================================================ */
+.by-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+.by-item-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  transition: border-color 0.15s ease;
+}
+
+.by-item-row--star {
+  border-color: rgba(196, 163, 90, 0.5);
+  background: linear-gradient(to right, #fffbf0, var(--white));
+}
+
+.by-item-thumb {
+  flex-shrink: 0;
+  width: 44px;
+  height: 56px;
+  background: var(--ivory);
+  border-radius: 1px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.by-item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.by-item-thumb-empty {
+  font-size: 12px;
+  color: var(--sand);
+  font-family: 'Jost', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.by-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.by-item-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  font-weight: 300;
+  color: var(--black);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.by-item-star-label {
+  color: var(--gold);
+  font-size: 13px;
+}
+
+.by-item-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.by-item-day-chip {
+  font-size: 10px;
+  color: var(--taupe);
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+.by-item-count {
+  flex-shrink: 0;
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--taupe);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.by-item-count--star {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+/* ============================================================
+   CHECKLIST VIEW
+   ============================================================ */
+.checklist-view {
+  animation: fadeIn 0.2s ease;
+}
+
+.checklist-header {
+  margin-bottom: 20px;
+}
+
+.checklist-progress-track {
+  height: 4px;
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.checklist-progress-fill {
+  height: 100%;
+  background: linear-gradient(to right, var(--gold-light), var(--gold));
+  border-radius: 2px;
+  transition: width 0.35s ease;
+}
+
+.checklist-progress-label {
+  font-size: 11px;
+  color: var(--taupe);
+  letter-spacing: 0.06em;
+  text-align: right;
+}
+
+.checklist-group {
+  margin-bottom: 24px;
+}
+
+.checklist-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.checklist-group-count {
+  background: var(--ivory);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10px;
+  color: var(--taupe);
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+  user-select: none;
+}
+
+.checklist-item:hover { background: var(--ivory); }
+
+.checklist-item--done {
+  opacity: 0.5;
+  text-decoration: line-through;
+  background: var(--ivory);
+}
+
+.checklist-checkbox {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--charcoal);
+  cursor: pointer;
+}
+
+.checklist-thumb {
+  flex-shrink: 0;
+  width: 36px;
+  height: 46px;
+  background: var(--ivory);
+  border-radius: 1px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checklist-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.checklist-thumb-empty {
+  font-size: 11px;
+  color: var(--sand);
+  font-family: 'Jost', sans-serif;
+}
+
+.checklist-item-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--charcoal);
+  letter-spacing: 0.01em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checklist-item-color {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--taupe);
+  letter-spacing: 0.06em;
+  text-transform: capitalize;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 768px) {
