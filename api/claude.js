@@ -83,10 +83,56 @@ function buildInspirationContext(inspiration) {
   return { text, imageInputs }
 }
 
+// Category → slot mapping used as a post-generation safety net
+const CATEGORY_TO_SLOT = {
+  dress: 'dress', top: 'top', cardigan: 'cardigan', bottom: 'bottom',
+  outerwear: 'outerwear', shoes: 'shoes', bag: 'bag', jewelry: 'jewelry',
+  belt: 'belt', accessory: 'accessory', sunglasses: 'accessory', other: 'accessory',
+}
+const VALID_SLOTS = new Set(['dress', 'top', 'cardigan', 'bottom', 'outerwear', 'shoes', 'bag', 'jewelry', 'belt', 'accessory'])
+
+// Post-process the Claude response:
+// 1. Remove any item placed in a slot that doesn't match its category
+// 2. Restore anchored items to their correct slots if Claude dropped or misplaced them
+function enforceSlotCategories(result, items, anchored) {
+  const out = { ...result }
+
+  // Nullify any item placed in the wrong slot
+  for (const slot of VALID_SLOTS) {
+    const id = out[slot]
+    if (!id) continue
+    const item = items.find(i => i.id === id)
+    if (!item) { out[slot] = null; continue }
+    const correctSlot = CATEGORY_TO_SLOT[item.category]
+    if (correctSlot && correctSlot !== slot) {
+      out[slot] = null  // wrong slot — clear it; the item may still be placed correctly below
+    }
+  }
+
+  // Ensure each anchored item is in its correct slot
+  for (const id of (anchored || [])) {
+    const item = items.find(i => i.id === id)
+    if (!item) continue
+    const slot = CATEGORY_TO_SLOT[item.category]
+    if (slot && VALID_SLOTS.has(slot)) {
+      out[slot] = id
+    }
+  }
+
+  return out
+}
+
 async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location, inspiration }) {
-  const anchoredList = anchored?.length
-    ? `MUST INCLUDE these item IDs: ${anchored.join(', ')}`
-    : 'No anchored items.'
+  // Build anchored note with name + correct slot so the model knows exactly where to place each item
+  const anchoredNote = anchored?.length
+    ? `ANCHORED ITEMS — MUST INCLUDE ALL OF THESE IN THE CORRECT SLOT:\n${
+        anchored.map(id => {
+          const item = items.find(i => i.id === id)
+          const slot = item?.category === 'sunglasses' || item?.category === 'other' ? 'accessory' : (item?.category || '?')
+          return `• ${id} — ${item?.name || 'unknown'} → "${slot}" slot`
+        }).join('\n')
+      }`
+    : ''
 
   const excludeNote = excludeIds?.length
     ? `PREVIOUSLY WORN / ALREADY SHOWN — COMPLETELY OFF-LIMITS: The following item IDs MUST NOT appear anywhere in this outfit. This ban overrides weather, season, occasion, and all other rules. Using any of these IDs is a critical error that invalidates the entire outfit:\n${excludeIds.join(', ')}`
@@ -124,11 +170,9 @@ ${occasionNote}
 ${seasonNote}
 ${timeNote}
 ${inspirationText}
-${excludeNote}
-
+${excludeNote ? excludeNote + '\n' : ''}${anchoredNote ? anchoredNote + '\n' : ''}
 Available wardrobe items:
 ${JSON.stringify(items)}
-${anchoredList}
 ${varietyNote}
 
 MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
@@ -137,26 +181,30 @@ RULE 1 — WEATHER: MUST select items appropriate for ${weather?.temp ? `${weath
 RULE 2 — OCCASION: MUST NOT include any item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}". ONLY items whose occasions array includes the occasion, or whose occasions array is empty, are permitted.
 RULE 3 — SEASON: MUST NOT include any item whose seasons array is non-empty and does not contain "${season || 'the current season'}". ONLY items whose seasons array includes the season, or whose seasons array is empty, are permitted.
 RULE 4 — OFF-LIMITS ITEMS: The "PREVIOUSLY WORN / ALREADY SHOWN" IDs listed above MUST NOT appear in this outfit under any circumstances. Not for weather. Not for season. Not for any reason. If no qualifying replacement exists for a slot, leave that slot null rather than use an off-limits ID.
-RULE 5 — INSPIRATION: If inspiration images are provided above, MUST reflect their aesthetic, colour palette, and silhouette in every selection.
-RULE 6 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
-RULE 7 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
-RULE 8 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
-RULE 9 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
-RULE 10 — FINAL CHECK: Before returning, verify every selected item against every other item. If any item violates Rules 6–9, replace it. Do not return an outfit that fails any rule.
+RULE 5 — ANCHORED ITEMS: Every item listed under "ANCHORED ITEMS" above MUST appear in the outfit, placed in the exact slot shown next to it. Omitting an anchored item or placing it in a different slot is a critical error that invalidates the entire outfit. Weather, season, occasion, and all other rules MUST be satisfied by choosing the remaining items around the anchored pieces — never by omitting an anchored item.
+RULE 6 — CATEGORY-SLOT MATCHING: Every item MUST be placed only in the slot that matches its own category field. The exact mapping is: category "dress" → "dress" slot only; "top" → "top" slot only; "cardigan" → "cardigan" slot only; "bottom" → "bottom" slot only; "outerwear" → "outerwear" slot only; "shoes" → "shoes" slot only; "bag" → "bag" slot only; "jewelry" → "jewelry" slot only; "belt" → "belt" slot only; "accessory", "sunglasses", or "other" → "accessory" slot only. NEVER place an item in a slot that does not match its category — a "top" in the "outerwear" slot is always wrong.
+RULE 7 — INSPIRATION: If inspiration images are provided above, MUST reflect their aesthetic, colour palette, and silhouette in every selection.
+RULE 8 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
+RULE 9 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
+RULE 10 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
+RULE 11 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
+RULE 12 — FINAL CHECK: Before returning, verify: (1) every anchored item is present in its correct slot (Rule 5); (2) every item is in a slot matching its category (Rule 6); (3) no item violates Rules 8–11. Replace any violating item. Do not return an outfit that fails any rule.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Structure rules (also mandatory):
 - MUST use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null. If top or bottom is set, dress must be null.
 - Cardigan: if paired with a top, the top MUST be a tank or sleeveless style. If paired with a dress, top and bottom MUST be null.
 - MUST only populate slots that genuinely contribute to the outfit. Set slots to null when not needed.
-- MUST only use IDs from the provided list.`
+- MUST only use IDs from the provided list.
+- Every ID used must belong to an item whose category maps to that slot per Rule 6.`
 
   const content = imageInputs.length
     ? [...imageInputs, { type: 'text', text: promptText }]
     : promptText
 
   const text = await callAnthropic([{ role: 'user', content }])
-  return parseJSON(text)
+  const result = parseJSON(text)
+  return enforceSlotCategories(result, items, anchored)
 }
 
 // ── Real weather via Open-Meteo (no API key required) ──────────────────────
@@ -310,7 +358,13 @@ Return JSON only as an array: [{ "name": "", "brand": "", "description": "", "pr
 
 async function generateTripOutfit({ items, anchored, packingList, previousOutfits, weather, occasion, timeOfDay, date, destination, season }) {
   const anchoredList = anchored?.length
-    ? `ANCHORED ITEMS — MUST be included (place in their appropriate slots): ${anchored.join(', ')}`
+    ? `ANCHORED ITEMS — MUST INCLUDE ALL OF THESE IN THE CORRECT SLOT:\n${
+        anchored.map(id => {
+          const item = items.find(i => i.id === id)
+          const slot = item?.category === 'sunglasses' || item?.category === 'other' ? 'accessory' : (item?.category || '?')
+          return `• ${id} — ${item?.name || 'unknown'} → "${slot}" slot`
+        }).join('\n')
+      }`
     : 'No anchored items.'
 
   const packingStr = packingList?.length
@@ -372,22 +426,25 @@ RULE 1 — WEATHER: MUST select items appropriate for ${weather?.temp ? `${weath
 RULE 2 — OCCASION: MUST NOT include any item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}". ONLY items whose occasions array includes the occasion, or whose occasions array is empty, are permitted.
 RULE 3 — SEASON: MUST NOT include any item whose seasons array is non-empty and does not contain "${season || 'the current season'}". ONLY items whose seasons array includes the season, or whose seasons array is empty, are permitted.
 RULE 4 — PACKING EFFICIENCY: Items already in the packing list SHOULD be reused where they fit the weather, occasion, and season. When reusing, pair with different complementary pieces to create a distinct look. Do not duplicate an entire outfit.
-RULE 5 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
-RULE 6 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
-RULE 7 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
-RULE 8 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
-RULE 9 — ANCHORED ITEMS: If anchored items are listed above, MUST include them in their appropriate slots.
-RULE 10 — FINAL CHECK: Before returning, verify every selected item against every other item. If any item violates Rules 5–8, replace it. Do not return an outfit that fails any rule.
+RULE 5 — ANCHORED ITEMS: Every item listed under "ANCHORED ITEMS" above MUST appear in the outfit, placed in the exact slot shown. Omitting an anchored item or placing it in a different slot is a critical error. Satisfy weather, occasion, and season by choosing the remaining items around the anchored pieces.
+RULE 6 — CATEGORY-SLOT MATCHING: Every item MUST be placed only in the slot that matches its category field. The mapping is: "dress"→"dress"; "top"→"top"; "cardigan"→"cardigan"; "bottom"→"bottom"; "outerwear"→"outerwear"; "shoes"→"shoes"; "bag"→"bag"; "jewelry"→"jewelry"; "belt"→"belt"; "accessory"/"sunglasses"/"other"→"accessory". NEVER place an item in a slot that does not match its category.
+RULE 7 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
+RULE 8 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
+RULE 9 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
+RULE 10 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
 RULE 11 — NO DUPLICATE OUTFITS: The outfits listed above under "OUTFITS ALREADY PLANNED" must NOT be reproduced. The core clothing items (dress OR the top+bottom pair) MUST be different from every outfit listed. Sharing 3 or more total items with any previously planned outfit is a critical error — the entire outfit must be reworked until it is clearly distinct.
+RULE 12 — FINAL CHECK: Before returning, verify: (1) every anchored item is present in its correct slot (Rule 5); (2) every item is in a slot matching its category (Rule 6); (3) no item violates Rules 7–10. Replace any violating item. Do not return an outfit that fails any rule.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Structure rules (also mandatory):
 - MUST use EITHER dress OR top+bottom — never both. If dress is set, top and bottom must be null. If top or bottom is set, dress must be null.
 - Cardigan: if paired with a top, the top MUST be a tank or sleeveless style. If paired with a dress, top and bottom MUST be null.
 - MUST only populate slots that genuinely contribute to the outfit. Set slots to null when not needed.
-- MUST only use IDs from the provided list.`
+- MUST only use IDs from the provided list.
+- Every ID used must belong to an item whose category maps to that slot per Rule 6.`
   }])
-  return parseJSON(text)
+  const result = parseJSON(text)
+  return enforceSlotCategories(result, items, anchored)
 }
 
 // ── Bulk trip weather fetch via Open-Meteo ─────────────────────────────────
