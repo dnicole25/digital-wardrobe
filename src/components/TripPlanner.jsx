@@ -353,11 +353,12 @@ function SlotEditor({ outfitSlots, wardrobeItems, onSave, onCancel }) {
 }
 
 // DayCard — one day's day+night outfit management
-function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay, itemUseCounts }) {
+function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay, itemUseCounts, dragSource, onDragStart, onDragEnd, onDrop }) {
   const [generatingDay, setGeneratingDay] = useState(false)
   const [generatingNight, setGeneratingNight] = useState(false)
   const [editingDay, setEditingDay] = useState(false)
   const [editingNight, setEditingNight] = useState(false)
+  const [dragOver, setDragOver] = useState(null) // 'day' | 'night' | null
 
   const dayWeather = day.weather?.day || null
   const nightWeather = day.weather?.night || null
@@ -489,7 +490,15 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
 
       <div className="trip-day-columns">
         {/* Day column */}
-        <div>
+        <div
+          className={`trip-outfit-col${dragSource?.date === day.date && dragSource?.time === 'day' ? ' dragging' : ''}${dragOver === 'day' ? ' drag-over' : ''}`}
+          draggable={!!day.day?.outfit_slots && !!Object.values(day.day.outfit_slots).some(Boolean)}
+          onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(day.date, 'day') }}
+          onDragEnd={() => { onDragEnd?.(); setDragOver(null) }}
+          onDragOver={e => { e.preventDefault(); if (dragSource && !(dragSource.date === day.date && dragSource.time === 'day')) setDragOver('day') }}
+          onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null) }}
+          onDrop={e => { e.preventDefault(); setDragOver(null); onDrop?.(day.date, 'day') }}
+        >
           <div className="trip-day-col-header">
             <div className="day-outfit-label">☀ Day</div>
             <div style={{ display: 'flex', gap: 4 }}>
@@ -527,6 +536,16 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
               {day.day.notes && (
                 <p className="trip-outfit-notes">{day.day.notes}</p>
               )}
+              <label className="worn-label">
+                <input
+                  type="checkbox"
+                  checked={!!day.day?.worn}
+                  onChange={() => onUpdateDay(day.date, { ...day, day: { ...day.day, worn: !day.day?.worn } })}
+                />
+                <span className={`worn-badge${day.day?.worn ? ' worn-badge--done' : ''}`}>
+                  {day.day?.worn ? '✓ Worn' : 'Log as worn'}
+                </span>
+              </label>
               {editingDay && (
                 <SlotEditor
                   outfitSlots={day.day.outfit_slots}
@@ -549,7 +568,15 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
         </div>
 
         {/* Night column */}
-        <div>
+        <div
+          className={`trip-outfit-col${dragSource?.date === day.date && dragSource?.time === 'night' ? ' dragging' : ''}${dragOver === 'night' ? ' drag-over' : ''}`}
+          draggable={!day.sameAsDay && !!day.night?.outfit_slots && !!Object.values(day.night.outfit_slots).some(Boolean)}
+          onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(day.date, 'night') }}
+          onDragEnd={() => { onDragEnd?.(); setDragOver(null) }}
+          onDragOver={e => { e.preventDefault(); if (dragSource && !(dragSource.date === day.date && dragSource.time === 'night')) setDragOver('night') }}
+          onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null) }}
+          onDrop={e => { e.preventDefault(); setDragOver(null); onDrop?.(day.date, 'night') }}
+        >
           <div className="trip-day-col-header">
             <div className="day-outfit-label">☽ Night</div>
             {!day.sameAsDay && (
@@ -593,6 +620,16 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
               {day.night.notes && (
                 <p className="trip-outfit-notes">{day.night.notes}</p>
               )}
+              <label className="worn-label">
+                <input
+                  type="checkbox"
+                  checked={!!day.night?.worn}
+                  onChange={() => onUpdateDay(day.date, { ...day, night: { ...day.night, worn: !day.night?.worn } })}
+                />
+                <span className={`worn-badge${day.night?.worn ? ' worn-badge--done' : ''}`}>
+                  {day.night?.worn ? '✓ Worn' : 'Log as worn'}
+                </span>
+              </label>
               {editingNight && (
                 <SlotEditor
                   outfitSlots={day.night.outfit_slots}
@@ -885,7 +922,8 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
   const [showNewTripModal, setShowNewTripModal] = useState(false)
   const [generatingAll, setGeneratingAll] = useState(false)
   const [generateProgress, setGenerateProgress] = useState({ current: 0, total: 0 })
-  const [tripView, setTripView] = useState('by-day') // 'by-day' | 'by-item'
+  const [tripView, setTripView] = useState('by-day') // 'by-day' | 'by-item' | 'checklist'
+  const [dragSource, setDragSource] = useState(null)  // { date, time }
 
   const currentTrip = trips.find(t => t.id === activeTripId) || trips[0] || null
 
@@ -894,6 +932,40 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
     if (!trip) return
     const days = (trip.days || []).map(d => d.date === date ? updatedDay : d)
     return onUpdateTrip(tripId, { days })
+  }
+
+  function handleDragStart(date, time) {
+    setDragSource({ date, time })
+  }
+
+  function handleDragEnd() {
+    setDragSource(null)
+  }
+
+  function handleDrop(targetDate, targetTime) {
+    if (!dragSource || !currentTrip) { setDragSource(null); return }
+    if (dragSource.date === targetDate && dragSource.time === targetTime) { setDragSource(null); return }
+
+    const sourceDay = currentTrip.days.find(d => d.date === dragSource.date)
+    const targetDay = currentTrip.days.find(d => d.date === targetDate)
+    if (!sourceDay || !targetDay) { setDragSource(null); return }
+
+    const srcTime = dragSource.time
+    const sourceOutfit = sourceDay[srcTime]
+    const targetOutfit = targetDay[targetTime]
+
+    const updatedDays = currentTrip.days.map(d => {
+      if (d.date === dragSource.date && d.date === targetDate) {
+        // Same date card — swap day/night
+        return { ...d, [srcTime]: targetOutfit, [targetTime]: sourceOutfit }
+      }
+      if (d.date === dragSource.date) return { ...d, [srcTime]: targetOutfit }
+      if (d.date === targetDate) return { ...d, [targetTime]: sourceOutfit }
+      return d
+    })
+
+    onUpdateTrip(currentTrip.id, { days: updatedDays })
+    setDragSource(null)
   }
 
   // Collect all item IDs currently in the trip (packing list)
@@ -1182,6 +1254,10 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
                   packingList={packingList}
                   onUpdateDay={(date, updatedDay) => handleUpdateDay(currentTrip.id, date, updatedDay)}
                   itemUseCounts={itemUseCounts}
+                  dragSource={dragSource}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDrop}
                 />
               ))}
             </div>

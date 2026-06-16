@@ -2400,6 +2400,66 @@ select.input-field {
 }
 
 /* ============================================================
+   TRIP DRAG-AND-DROP
+   ============================================================ */
+.trip-outfit-col {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px;
+  transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+  cursor: default;
+}
+.trip-outfit-col[draggable="true"] {
+  cursor: grab;
+}
+.trip-outfit-col[draggable="true"]:active {
+  cursor: grabbing;
+}
+.trip-outfit-col.dragging {
+  opacity: 0.35;
+}
+.trip-outfit-col.drag-over {
+  border-color: var(--gold);
+  background: rgba(196,163,90,0.07);
+  box-shadow: 0 0 0 2px rgba(196,163,90,0.15);
+}
+
+/* ============================================================
+   WORN TOGGLE
+   ============================================================ */
+.worn-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.worn-label input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  accent-color: var(--gold);
+  flex-shrink: 0;
+}
+.worn-badge {
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.worn-badge--done {
+  background: rgba(196,163,90,0.12);
+  color: var(--gold);
+  border-color: var(--gold-light);
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 768px) {
