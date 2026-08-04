@@ -123,6 +123,17 @@ function enforceSlotCategories(result, items, anchored) {
 }
 
 async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay, occasion, date, location, inspiration }) {
+  const anchoredIds = new Set(anchored || [])
+  const season = weather?.season || ''
+
+  // Pre-filter: remove items Claude should never pick — anchored items always pass through
+  const eligibleItems = items.filter(item => {
+    if (anchoredIds.has(item.id)) return true
+    if (occasion && item.occasions?.length > 0 && !item.occasions.includes(occasion)) return false
+    if (season && item.seasons?.length > 0 && !item.seasons.includes(season)) return false
+    return true
+  })
+
   // Build anchored note with name + correct slot so the model knows exactly where to place each item
   const anchoredNote = anchored?.length
     ? `ANCHORED ITEMS — MUST INCLUDE ALL OF THESE IN THE CORRECT SLOT:\n${
@@ -140,7 +151,6 @@ async function generateOutfit({ items, anchored, excludeIds, weather, timeOfDay,
 
   const varietyNote = `VARIETY: This wardrobe contains many items. Do not habitually default to the same pieces every time. For each slot, consider all qualifying items and deliberately choose from across the full range — including less-obvious picks, different colors, and combinations you have not suggested before. Avoid safe defaults; aim for a fresh, well-considered outfit.`
 
-  const season = weather?.season || ''
   const timeLabel = timeOfDay === 'night' ? 'evening/night' : 'daytime'
   const weatherStr = weather
     ? `Temperature: ${weather.temp}°F (feels like ${weather.feels_like}°F), Conditions: ${weather.condition}. ${weather.recommendation}`
@@ -171,14 +181,14 @@ ${seasonNote}
 ${timeNote}
 ${inspirationText}
 ${excludeNote ? excludeNote + '\n' : ''}${anchoredNote ? anchoredNote + '\n' : ''}
-Available wardrobe items:
-${JSON.stringify(items)}
+Available wardrobe items (pre-filtered to this occasion${season ? ' and season' : ''}):
+${JSON.stringify(eligibleItems)}
 ${varietyNote}
 
 MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
 
 RULE 1 — WEATHER: MUST select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the current temperature'} and ${weather?.condition || 'the conditions'}. If rainy or snowy, MUST include outerwear and practical footwear. If sunny and warm, MUST use lighter fabrics.
-RULE 2 — OCCASION: MUST NOT include any item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}". ONLY items whose occasions array includes the occasion, or whose occasions array is empty, are permitted.
+RULE 2 — OCCASION: Every item shown above already matches the "${occasion || 'selected'}" occasion filter. MUST NOT attempt to use any item ID not present in the list above.
 RULE 3 — SEASON: MUST NOT include any item whose seasons array is non-empty and does not contain "${season || 'the current season'}". ONLY items whose seasons array includes the season, or whose seasons array is empty, are permitted.
 RULE 4 — OFF-LIMITS ITEMS: The "PREVIOUSLY WORN / ALREADY SHOWN" IDs listed above MUST NOT appear in this outfit under any circumstances. Not for weather. Not for season. Not for any reason. If no qualifying replacement exists for a slot, leave that slot null rather than use an off-limits ID.
 RULE 5 — ANCHORED ITEMS: Every item listed under "ANCHORED ITEMS" above MUST appear in the outfit, placed in the exact slot shown next to it. Omitting an anchored item or placing it in a different slot is a critical error that invalidates the entire outfit. Weather, season, occasion, and all other rules MUST be satisfied by choosing the remaining items around the anchored pieces — never by omitting an anchored item.
@@ -357,6 +367,16 @@ Return JSON only as an array: [{ "name": "", "brand": "", "description": "", "pr
 }
 
 async function generateTripOutfit({ items, anchored, packingList, previousOutfits, weather, occasion, timeOfDay, date, destination, season }) {
+  const anchoredIds = new Set(anchored || [])
+
+  // Pre-filter: remove items that don't match occasion or season — anchored items always pass through
+  const eligibleItems = items.filter(item => {
+    if (anchoredIds.has(item.id)) return true
+    if (occasion && item.occasions?.length > 0 && !item.occasions.includes(occasion)) return false
+    if (season && item.seasons?.length > 0 && !item.seasons.includes(season)) return false
+    return true
+  })
+
   const anchoredList = anchored?.length
     ? `ANCHORED ITEMS — MUST INCLUDE ALL OF THESE IN THE CORRECT SLOT:\n${
         anchored.map(id => {
@@ -415,25 +435,24 @@ ${timeNote}
 
 ${noRepeatNote ? noRepeatNote + '\n' : ''}${packingStr}
 
-Available wardrobe items:
-${JSON.stringify(items)}
+Available wardrobe items (pre-filtered to this occasion${season ? ' and season' : ''}):
+${JSON.stringify(eligibleItems)}
 ${anchoredList}
 ${varietyNote}
 
 MANDATORY RULES — every rule below is non-negotiable. An outfit that violates any rule is incorrect and must be revised before returning.
 
 RULE 1 — WEATHER: MUST select items appropriate for ${weather?.temp ? `${weather.temp}°F` : 'the current temperature'} and ${weather?.condition || 'the conditions'}. If rainy or snowy, MUST include outerwear and practical footwear. If sunny and warm, MUST use lighter fabrics.
-RULE 2 — OCCASION: MUST NOT include any item whose occasions array is non-empty and does not contain "${occasion || 'the selected occasion'}". ONLY items whose occasions array includes the occasion, or whose occasions array is empty, are permitted.
-RULE 3 — SEASON: MUST NOT include any item whose seasons array is non-empty and does not contain "${season || 'the current season'}". ONLY items whose seasons array includes the season, or whose seasons array is empty, are permitted.
-RULE 4 — PACKING EFFICIENCY: Items already in the packing list SHOULD be reused where they fit the weather, occasion, and season. When reusing, pair with different complementary pieces to create a distinct look. Do not duplicate an entire outfit.
-RULE 5 — ANCHORED ITEMS: Every item listed under "ANCHORED ITEMS" above MUST appear in the outfit, placed in the exact slot shown. Omitting an anchored item or placing it in a different slot is a critical error. Satisfy weather, occasion, and season by choosing the remaining items around the anchored pieces.
-RULE 6 — CATEGORY-SLOT MATCHING: Every item MUST be placed only in the slot that matches its category field. The mapping is: "dress"→"dress"; "top"→"top"; "cardigan"→"cardigan"; "bottom"→"bottom"; "outerwear"→"outerwear"; "shoes"→"shoes"; "bag"→"bag"; "jewelry"→"jewelry"; "belt"→"belt"; "accessory"/"sunglasses"/"other"→"accessory". NEVER place an item in a slot that does not match its category.
-RULE 7 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
-RULE 8 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
-RULE 9 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
-RULE 10 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
-RULE 11 — NO DUPLICATE OUTFITS: The outfits listed above under "OUTFITS ALREADY PLANNED" must NOT be reproduced. The core clothing items (dress OR the top+bottom pair) MUST be different from every outfit listed. Sharing 3 or more total items with any previously planned outfit is a critical error — the entire outfit must be reworked until it is clearly distinct.
-RULE 12 — FINAL CHECK: Before returning, verify: (1) every anchored item is present in its correct slot (Rule 5); (2) every item is in a slot matching its category (Rule 6); (3) no item violates Rules 7–10. Replace any violating item. Do not return an outfit that fails any rule.
+RULE 2 — OCCASION & SEASON: Every item shown above already matches the "${occasion || 'selected'}" occasion${season ? ` and "${season}" season` : ''} filter. MUST NOT attempt to use any item ID not present in the list above.
+RULE 3 — PACKING EFFICIENCY (was Rule 4): Items already in the packing list SHOULD be reused where they fit the weather, occasion, and season. When reusing, pair with different complementary pieces to create a distinct look. Do not duplicate an entire outfit.
+RULE 4 — ANCHORED ITEMS: Every item listed under "ANCHORED ITEMS" above MUST appear in the outfit, placed in the exact slot shown. Omitting an anchored item or placing it in a different slot is a critical error. Satisfy weather, occasion, and season by choosing the remaining items around the anchored pieces.
+RULE 5 — CATEGORY-SLOT MATCHING: Every item MUST be placed only in the slot that matches its category field. The mapping is: "dress"→"dress"; "top"→"top"; "cardigan"→"cardigan"; "bottom"→"bottom"; "outerwear"→"outerwear"; "shoes"→"shoes"; "bag"→"bag"; "jewelry"→"jewelry"; "belt"→"belt"; "accessory"/"sunglasses"/"other"→"accessory". NEVER place an item in a slot that does not match its category.
+RULE 6 — COLOR PALETTE: MUST build around 2–3 colors only. MUST NOT combine items whose colors clash or compete. Neutrals (black, white, ivory, beige, grey, navy, camel, tan) may pair with any color.
+RULE 7 — PATTERN DISCIPLINE: MUST NOT pair two bold patterns of the same type (two stripes, two florals, two plaids, etc.). If any visible piece is patterned, every other visible piece MUST be a solid or a clearly different subtle pattern. MUST pick up a color from the pattern for any coordinating solid pieces.
+RULE 8 — AESTHETIC CONSISTENCY: All pieces MUST share a similar formality and style. MUST NOT mix very casual items with very formal ones.
+RULE 9 — ACCESSORIES: Bag, belt, and jewelry MUST connect to the outfit palette by matching a key color, a neutral tone, or a coordinating metal. MUST NOT select an accessory whose color is unrelated to the rest of the outfit.
+RULE 10 — NO DUPLICATE OUTFITS: The outfits listed above under "OUTFITS ALREADY PLANNED" must NOT be reproduced. The core clothing items (dress OR the top+bottom pair) MUST be different from every outfit listed. Sharing 3 or more total items with any previously planned outfit is a critical error — the entire outfit must be reworked until it is clearly distinct.
+RULE 11 — FINAL CHECK: Before returning, verify: (1) every anchored item is present in its correct slot (Rule 4); (2) every item is in a slot matching its category (Rule 5); (3) no item violates Rules 6–9. Replace any violating item. Do not return an outfit that fails any rule.
 
 Return JSON only: { "dress": "id or null", "top": "id or null", "cardigan": "id or null", "bottom": "id or null", "outerwear": "id or null", "shoes": "id or null", "bag": "id or null", "jewelry": "id or null", "belt": "id or null", "accessory": "id or null", "notes": "one sentence noting weather suitability and style" }
 Structure rules (also mandatory):
