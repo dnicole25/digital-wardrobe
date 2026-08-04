@@ -47,8 +47,10 @@ export default function ItemCard({
   const [imageError, setImageError] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [expanded, setExpanded] = useState(false)
 
-  async function handleDelete() {
+  async function handleDelete(e) {
+    if (e) e.stopPropagation()
     if (!window.confirm(`Delete "${item.name || 'this item'}"?`)) return
     setDeleting(true)
     setDeleteError('')
@@ -63,122 +65,209 @@ export default function ItemCard({
   const occasions = item.occasions || []
   const seasons = item.seasons || []
 
+  const hasImage = item.image_url && !imageError
+
   return (
-    <div className="item-card fade-in">
-      <div className="item-card-image">
-        {item.image_url && !imageError ? (
-          <img
-            src={item.image_url}
-            alt={item.name}
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="item-card-placeholder">
-            <ImageIcon />
-          </div>
-        )}
+    <>
+      {/* Regular card — click anywhere to expand */}
+      <div className="item-card fade-in" onClick={() => setExpanded(true)} style={{ cursor: 'pointer' }}>
+        <div className="item-card-image">
+          {hasImage ? (
+            <img src={item.image_url} alt={item.name} onError={() => setImageError(true)} />
+          ) : (
+            <div className="item-card-placeholder"><ImageIcon /></div>
+          )}
 
-        {onAnchorToggle && (
-          <button
-            className={`item-card-anchor ${isAnchored ? 'anchored' : ''}`}
-            onClick={() => onAnchorToggle(item.id)}
-            title={isAnchored ? 'Unanchor' : 'Anchor (always include)'}
-          >
-            <AnchorIcon filled={isAnchored} />
-          </button>
-        )}
+          {onAnchorToggle && (
+            <button
+              className={`item-card-anchor ${isAnchored ? 'anchored' : ''}`}
+              onClick={e => { e.stopPropagation(); onAnchorToggle(item.id) }}
+              title={isAnchored ? 'Unanchor' : 'Anchor (always include)'}
+            >
+              <AnchorIcon filled={isAnchored} />
+            </button>
+          )}
 
-        {item.source && (
-          <div className="item-card-source">{item.source}</div>
-        )}
-      </div>
-
-      <div className="item-card-body">
-        <div className="item-card-name">{item.name || 'Unnamed Item'}</div>
-        {item.source && (
-          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--taupe)', marginBottom: 6 }}>
-            {item.source}
-          </div>
-        )}
-
-        <div className="item-card-tags">
-          {item.category && <span className="tag">{item.category}</span>}
-          {item.color && <span className="tag blush">{item.color}</span>}
-          {item.size && <span className="tag">Sz {item.size}</span>}
-          {occasions.map(o => (
-            <span key={o} className="tag gold">{o}</span>
-          ))}
-          {seasons.map(s => (
-            <span key={s} className="tag">{s}</span>
-          ))}
+          {item.source && (
+            <div className="item-card-source">{item.source}</div>
+          )}
         </div>
 
-        <div className="item-card-actions">
-          {showWishlistActions && item.url && (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
+        <div className="item-card-body">
+          <div className="item-card-name">{item.name || 'Unnamed Item'}</div>
+          {item.source && (
+            <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--taupe)', marginBottom: 6 }}>
+              {item.source}
+            </div>
+          )}
+
+          <div className="item-card-tags">
+            {item.category && <span className="tag">{item.category}</span>}
+            {item.color && <span className="tag blush">{item.color}</span>}
+            {item.size && <span className="tag">Sz {item.size}</span>}
+            {occasions.map(o => <span key={o} className="tag gold">{o}</span>)}
+            {seasons.map(s => <span key={s} className="tag">{s}</span>)}
+          </div>
+
+          <div className="item-card-actions">
+            {showWishlistActions && item.url && (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-icon"
+                title="Open product page"
+                onClick={e => e.stopPropagation()}
+              >
+                <ExternalLinkIcon />
+              </a>
+            )}
+
+            <button className="btn-icon" onClick={e => { e.stopPropagation(); onEdit(item) }} title="Edit">
+              <EditIcon />
+            </button>
+
+            <button
               className="btn-icon"
-              title="Open product page"
+              onClick={handleDelete}
+              disabled={deleting}
+              title="Delete"
+              style={{ color: deleting ? 'var(--sand)' : undefined }}
             >
-              <ExternalLinkIcon />
-            </a>
+              {deleting ? <span className="spin" style={{ fontSize: 12 }}>◌</span> : <TrashIcon />}
+            </button>
+          </div>
+          {deleteError && (
+            <div style={{ fontSize: 11, color: '#c0392b', padding: '4px 12px 8px' }}>{deleteError}</div>
           )}
-
-          <button className="btn-icon" onClick={() => onEdit(item)} title="Edit">
-            <EditIcon />
-          </button>
-
-          <button
-            className="btn-icon"
-            onClick={handleDelete}
-            disabled={deleting}
-            title="Delete"
-            style={{ color: deleting ? 'var(--sand)' : undefined }}
-          >
-            {deleting ? <span className="spin" style={{ fontSize: 12 }}>◌</span> : <TrashIcon />}
-          </button>
         </div>
-        {deleteError && (
-          <div style={{ fontSize: 11, color: '#c0392b', padding: '4px 12px 8px' }}>{deleteError}</div>
+
+        {showWishlistActions && (
+          <div className="item-card-wishlist-actions">
+            {onMoveToWardrobe && (
+              <button
+                className="btn-outline"
+                style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+                onClick={e => { e.stopPropagation(); onMoveToWardrobe(item) }}
+                title="Move to wardrobe"
+              >
+                + Wardrobe
+              </button>
+            )}
+            {onGenerateOutfit && (
+              <button
+                className="btn-outline"
+                style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+                onClick={e => { e.stopPropagation(); onGenerateOutfit(item) }}
+                title="Build outfit around this item"
+              >
+                ✦ Outfit
+              </button>
+            )}
+            {onFindSimilar && (
+              <button
+                className="btn-outline"
+                style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
+                onClick={e => { e.stopPropagation(); onFindSimilar(item) }}
+                title="Find similar items"
+              >
+                ⌕ Similar
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      {showWishlistActions && (
-        <div className="item-card-wishlist-actions">
-          {onMoveToWardrobe && (
-            <button
-              className="btn-outline"
-              style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
-              onClick={() => onMoveToWardrobe(item)}
-              title="Move to wardrobe"
-            >
-              + Wardrobe
-            </button>
-          )}
-          {onGenerateOutfit && (
-            <button
-              className="btn-outline"
-              style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
-              onClick={() => onGenerateOutfit(item)}
-              title="Build outfit around this item"
-            >
-              ✦ Outfit
-            </button>
-          )}
-          {onFindSimilar && (
-            <button
-              className="btn-outline"
-              style={{ flex: 1, fontSize: '10px', padding: '6px 8px' }}
-              onClick={() => onFindSimilar(item)}
-              title="Find similar items"
-            >
-              ⌕ Similar
-            </button>
-          )}
+      {/* Expanded overlay */}
+      {expanded && (
+        <div className="item-expanded-overlay" onClick={() => setExpanded(false)}>
+          <div className="item-expanded-card" onClick={e => e.stopPropagation()}>
+            <button className="item-expanded-close" onClick={() => setExpanded(false)} title="Close">✕</button>
+
+            {hasImage ? (
+              <div className="item-expanded-image">
+                <img src={item.image_url} alt={item.name} onError={() => setImageError(true)} />
+              </div>
+            ) : (
+              <div className="item-expanded-image-placeholder"><ImageIcon /></div>
+            )}
+
+            <div className="item-expanded-body">
+              <h2 className="item-expanded-name">{item.name || 'Unnamed Item'}</h2>
+              {item.source && (
+                <div className="item-expanded-source">{item.source}</div>
+              )}
+
+              <div className="item-card-tags" style={{ marginBottom: 16 }}>
+                {item.category && <span className="tag">{item.category}</span>}
+                {item.color && <span className="tag blush">{item.color}</span>}
+                {item.size && <span className="tag">Sz {item.size}</span>}
+                {occasions.map(o => <span key={o} className="tag gold">{o}</span>)}
+                {seasons.map(s => <span key={s} className="tag">{s}</span>)}
+              </div>
+
+              <div className="item-expanded-actions">
+                {showWishlistActions && item.url && (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-outline"
+                    style={{ fontSize: 12 }}
+                  >
+                    View Product <ExternalLinkIcon />
+                  </a>
+                )}
+                <button className="btn-outline" style={{ fontSize: 12 }} onClick={() => { setExpanded(false); onEdit(item) }}>
+                  Edit Item
+                </button>
+                <button
+                  className="btn-outline"
+                  style={{ fontSize: 12, color: deleting ? 'var(--sand)' : undefined }}
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? <><span className="spin">◌</span> Deleting…</> : 'Delete'}
+                </button>
+              </div>
+
+              {showWishlistActions && (
+                <div className="item-expanded-actions" style={{ marginTop: 8 }}>
+                  {onMoveToWardrobe && (
+                    <button className="btn-primary" style={{ fontSize: 12 }} onClick={() => { setExpanded(false); onMoveToWardrobe(item) }}>
+                      + Add to Wardrobe
+                    </button>
+                  )}
+                  {onGenerateOutfit && (
+                    <button className="btn-outline" style={{ fontSize: 12 }} onClick={() => { setExpanded(false); onGenerateOutfit(item) }}>
+                      ✦ Generate Outfit
+                    </button>
+                  )}
+                  {onFindSimilar && (
+                    <button className="btn-outline" style={{ fontSize: 12 }} onClick={() => { setExpanded(false); onFindSimilar(item) }}>
+                      ⌕ Find Similar
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {onAnchorToggle && (
+                <button
+                  className={`btn-outline${isAnchored ? ' active' : ''}`}
+                  style={{ width: '100%', marginTop: 8, fontSize: 12 }}
+                  onClick={() => { setExpanded(false); onAnchorToggle(item.id) }}
+                >
+                  <AnchorIcon filled={isAnchored} /> {isAnchored ? 'Unanchor item' : 'Anchor — always include in outfits'}
+                </button>
+              )}
+
+              {deleteError && (
+                <div style={{ fontSize: 11, color: '#c0392b', marginTop: 8 }}>{deleteError}</div>
+              )}
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
