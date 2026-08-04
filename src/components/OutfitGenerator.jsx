@@ -206,7 +206,7 @@ export default function OutfitGenerator({
             <input
               type="text"
               className="input-field"
-              placeholder="City or location"
+              placeholder="City name or US zip code"
               value={location}
               onChange={e => setLocation(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleGetWeather(location)}
@@ -222,6 +222,9 @@ export default function OutfitGenerator({
           </div>
           {weather && (
             <div className="weather-display" style={{ marginTop: 12 }}>
+              {weather.resolvedLocation && (
+                <div className="weather-resolved-location">📍 {weather.resolvedLocation}</div>
+              )}
               <div className="weather-temp">{weather.temp}°F</div>
               <div className="weather-condition">{weather.condition}{weather.season ? ` · ${weather.season}` : ''}</div>
               <div className="weather-rec">{weather.recommendation}</div>

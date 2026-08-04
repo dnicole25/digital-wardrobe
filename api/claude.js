@@ -217,6 +217,39 @@ Structure rules (also mandatory):
   return enforceSlotCategories(result, items, anchored)
 }
 
+// ── Geocoding — city names + US zip codes ──────────────────────────────────
+
+async function geocodeLocation(location) {
+  const trimmed = location.trim()
+
+  // US zip code (exactly 5 digits)
+  if (/^\d{5}$/.test(trimmed)) {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?postalcode=${trimmed}&countrycodes=us&format=json&limit=1&addressdetails=1`,
+      { headers: { 'User-Agent': 'DigitalWardrobe/1.0 (weather lookup)' } }
+    )
+    const data = await res.json()
+    if (!data?.length) throw new Error(`Zip code ${trimmed} not found`)
+    const r = data[0]
+    const addr = r.address || {}
+    const city = addr.city || addr.town || addr.village || addr.hamlet || trimmed
+    const state = addr.state || ''
+    const resolvedLocation = state ? `${city}, ${state}` : city
+    return { lat: parseFloat(r.lat), lon: parseFloat(r.lon), resolvedLocation }
+  }
+
+  // City / place name — Open-Meteo geocoding (global coverage, no key required)
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trimmed)}&count=1&language=en&format=json`
+  )
+  const geo = await res.json()
+  if (!geo.results?.length) throw new Error(`Location "${trimmed}" not found`)
+  const r = geo.results[0]
+  const parts = [r.name, r.admin1, r.country].filter(Boolean)
+  const resolvedLocation = parts.join(', ')
+  return { lat: r.latitude, lon: r.longitude, resolvedLocation }
+}
+
 // ── Real weather via Open-Meteo (no API key required) ──────────────────────
 
 const WMO_CONDITIONS = {
@@ -304,27 +337,25 @@ async function fetchRealWeather(lat, lon, date, timeOfDay) {
 }
 
 async function getWeather({ location, date, timeOfDay }) {
-  // Step 1 — geocode location
-  let lat, lon
+  // Step 1 — geocode (supports US zip codes and global city names)
+  let lat, lon, resolvedLocation
   try {
-    const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
-    )
-    const geo = await geoRes.json()
-    if (!geo.results?.length) throw new Error('Location not found')
-    lat = geo.results[0].latitude
-    lon = geo.results[0].longitude
+    const geo = await geocodeLocation(location)
+    lat = geo.lat
+    lon = geo.lon
+    resolvedLocation = geo.resolvedLocation
   } catch {
-    return getWeatherFromClaude({ location, date, timeOfDay })
+    const result = await getWeatherFromClaude({ location, date, timeOfDay })
+    return { ...result, resolvedLocation: location }
   }
 
   // Step 2 — check if date is within Open-Meteo range (historical + 16-day forecast)
-  // Dates more than 16 days in the future fall back to Claude seasonal estimate
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const daysOut = Math.floor((new Date(date + 'T00:00:00') - today) / 86400000)
   if (daysOut > 16) {
-    return getWeatherFromClaude({ location, date, timeOfDay })
+    const result = await getWeatherFromClaude({ location: resolvedLocation, date, timeOfDay })
+    return { ...result, resolvedLocation }
   }
 
   // Step 3 — fetch real weather
@@ -332,9 +363,10 @@ async function getWeather({ location, date, timeOfDay }) {
     const { temp, feels_like, condition } = await fetchRealWeather(lat, lon, date, timeOfDay)
     const season = getSeason(date, lat)
     const recommendation = weatherRecommendation(condition, temp, timeOfDay)
-    return { temp, feels_like, condition, season, recommendation }
+    return { temp, feels_like, condition, season, recommendation, resolvedLocation }
   } catch {
-    return getWeatherFromClaude({ location, date, timeOfDay })
+    const result = await getWeatherFromClaude({ location: resolvedLocation, date, timeOfDay })
+    return { ...result, resolvedLocation }
   }
 }
 
@@ -499,19 +531,16 @@ List every date from ${startDate} to ${endDate} inclusive.
 }
 
 async function getTripWeather({ destination, startDate, endDate }) {
-  // 1. Geocode destination
-  let lat, lon
+  // 1. Geocode destination (supports US zip codes and global city names)
+  let lat, lon, resolvedLocation
   try {
-    const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=en&format=json`
-    )
-    const geo = await geoRes.json()
-    if (!geo.results?.length) throw new Error('Location not found')
-    lat = geo.results[0].latitude
-    lon = geo.results[0].longitude
+    const geo = await geocodeLocation(destination)
+    lat = geo.lat
+    lon = geo.lon
+    resolvedLocation = geo.resolvedLocation
   } catch {
-    // Geocoding failed — fall back to Claude for all days
-    return getTripWeatherFromClaude({ destination, startDate, endDate })
+    const result = await getTripWeatherFromClaude({ destination, startDate, endDate })
+    return { ...result, _resolvedLocation: destination }
   }
 
   // 2. Determine date range coverage
@@ -521,7 +550,8 @@ async function getTripWeather({ destination, startDate, endDate }) {
 
   // If entire range is beyond 16 days, fall back to Claude
   if (startDaysOut > 16) {
-    return getTripWeatherFromClaude({ destination, startDate, endDate })
+    const r = await getTripWeatherFromClaude({ destination: resolvedLocation, startDate, endDate })
+    return { ...r, _resolvedLocation: resolvedLocation }
   }
 
   // Collect all dates in the range
@@ -601,7 +631,8 @@ async function getTripWeather({ destination, startDate, endDate }) {
       }
     } catch {
       // If Open-Meteo fails, fall back to Claude for all
-      return getTripWeatherFromClaude({ destination, startDate, endDate })
+      const r = await getTripWeatherFromClaude({ destination: resolvedLocation, startDate, endDate })
+      return { ...r, _resolvedLocation: resolvedLocation }
     }
   }
 
@@ -627,6 +658,7 @@ async function getTripWeather({ destination, startDate, endDate }) {
     if (!result[d]) result[d] = null
   }
 
+  result._resolvedLocation = resolvedLocation
   return result
 }
 

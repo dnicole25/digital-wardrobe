@@ -704,6 +704,7 @@ function NewTripModal({ onClose, onSubmit }) {
   const [occasion, setOccasion] = useState('vacation')
   const [creating, setCreating] = useState(false)
   const [fetchingWeather, setFetchingWeather] = useState(false)
+  const [resolvedDestination, setResolvedDestination] = useState('')
   const [error, setError] = useState('')
 
   async function handleSubmit(e) {
@@ -728,8 +729,14 @@ function NewTripModal({ onClose, onSubmit }) {
     setFetchingWeather(true)
 
     let weatherByDate = {}
+    let finalDestination = destination
     try {
       weatherByDate = await getTripWeather(destination, startDate, endDate)
+      // Use the geocoder's canonical name if available
+      if (weatherByDate._resolvedLocation) {
+        finalDestination = weatherByDate._resolvedLocation
+        setResolvedDestination(weatherByDate._resolvedLocation)
+      }
     } catch (err) {
       console.warn('Weather fetch failed, continuing without weather:', err)
     } finally {
@@ -746,7 +753,7 @@ function NewTripModal({ onClose, onSubmit }) {
     }))
 
     try {
-      await onSubmit({ name: tripName, destination, start_date: startDate, end_date: endDate, days })
+      await onSubmit({ name: tripName, destination: finalDestination, start_date: startDate, end_date: endDate, days })
       onClose()
     } catch (err) {
       setError(err.message || 'Failed to create trip.')
@@ -776,18 +783,18 @@ function NewTripModal({ onClose, onSubmit }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
-                <label className="label">City</label>
+                <label className="label">City or US Zip Code</label>
                 <input
                   type="text"
                   className="input-field"
                   value={city}
-                  onChange={e => setCity(e.target.value)}
-                  placeholder="Paris"
+                  onChange={e => { setCity(e.target.value); setResolvedDestination('') }}
+                  placeholder="Paris or 10001"
                   required
                 />
               </div>
               <div>
-                <label className="label">Country</label>
+                <label className="label">Country <span style={{ color: 'var(--taupe)', fontWeight: 300 }}>(optional)</span></label>
                 <input
                   type="text"
                   className="input-field"
@@ -797,6 +804,11 @@ function NewTripModal({ onClose, onSubmit }) {
                 />
               </div>
             </div>
+            {resolvedDestination && (
+              <p style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 12, letterSpacing: '0.04em' }}>
+                📍 Location confirmed: {resolvedDestination}
+              </p>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
                 <label className="label">Arrival Date</label>

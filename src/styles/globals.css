@@ -686,6 +686,14 @@ select.input-field {
   text-align: center;
 }
 
+.weather-resolved-location {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
 .weather-temp {
   font-family: 'Cormorant Garamond', serif;
   font-size: 40px;
