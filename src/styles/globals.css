@@ -2593,6 +2593,19 @@ select.input-field {
   letter-spacing: 0.04em;
 }
 
+/* Day-level delete button in the trip-day-header */
+.day-delete-btn {
+  font-size: 11px !important;
+  color: var(--taupe);
+  opacity: 0.5;
+  padding: 2px 6px !important;
+  transition: opacity 0.15s, color 0.15s;
+}
+.day-delete-btn:hover {
+  opacity: 1;
+  color: #c0392b;
+}
+
 /* ============================================================
    WORN TOGGLE
    ============================================================ */

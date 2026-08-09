@@ -353,7 +353,7 @@ function SlotEditor({ outfitSlots, wardrobeItems, onSave, onCancel }) {
 }
 
 // DayCard — one day's day+night outfit management
-function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay, itemUseCounts, dragSource, onDragStart, onDragEnd, onDrop, pendingMove, onStartMove, onCancelMove, onMoveHere }) {
+function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay, onDeleteDay, itemUseCounts, dragSource, onDragStart, onDragEnd, onDrop, pendingMove, onStartMove, onCancelMove, onMoveHere }) {
   const [generatingDay, setGeneratingDay] = useState(false)
   const [generatingNight, setGeneratingNight] = useState(false)
   const [editingDay, setEditingDay] = useState(false)
@@ -472,13 +472,28 @@ function DayCard({ day, trip, wardrobeItems, anchored, packingList, onUpdateDay,
             </span>
           )}
         </div>
-        <button
-          className={`tag ${day.sameAsDay ? 'active' : ''}`}
-          onClick={toggleSameDay}
-          style={{ cursor: 'pointer', flexShrink: 0 }}
-        >
-          Same day &amp; night
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          <button
+            className={`tag ${day.sameAsDay ? 'active' : ''}`}
+            onClick={toggleSameDay}
+            style={{ cursor: 'pointer' }}
+          >
+            Same day &amp; night
+          </button>
+          {onDeleteDay && (
+            <button
+              className="btn-icon day-delete-btn"
+              onClick={() => {
+                if (confirm(`Remove ${formatDate(day.date)} from this trip?`)) {
+                  onDeleteDay(day.date)
+                }
+              }}
+              title="Remove this day from the trip"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Per-day occasion selector */}
@@ -986,6 +1001,12 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
     return onUpdateTrip(tripId, { days })
   }
 
+  function handleDeleteDay(date) {
+    if (!currentTrip) return
+    const updatedDays = (currentTrip.days || []).filter(d => d.date !== date)
+    return onUpdateTrip(currentTrip.id, { days: updatedDays })
+  }
+
   function handleDragStart(date, time) {
     setDragSource({ date, time })
   }
@@ -1319,6 +1340,7 @@ export default function TripPlanner({ trips, wardrobeItems, anchored, onAnchorTo
                   anchored={anchored}
                   packingList={packingList}
                   onUpdateDay={(date, updatedDay) => handleUpdateDay(currentTrip.id, date, updatedDay)}
+                  onDeleteDay={handleDeleteDay}
                   itemUseCounts={itemUseCounts}
                   dragSource={dragSource}
                   onDragStart={handleDragStart}
